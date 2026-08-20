@@ -33,20 +33,33 @@ main
 
 ## Stack
 
-- **Backend** : Python
+- **Backend** : Python — FastAPI + SQLAlchemy 2 (style typé) + Alembic, PostgreSQL 16 en local
+  via `docker-compose.yml` (port 5433). Auth native argon2id + JWT en cookie httpOnly (pas de
+  fournisseur d'identité tiers). Deux migrations à ce stade : `0001_socle` (schéma complet des
+  3 jalons) et `0002_analytics_refresh_log`.
 - **Frontend** : Next.js — module terrain en PWA installable (caméra, stockage local, web push)
 - **Base de données** : PostgreSQL managé
-- **Couche analytique** : modèles séparés (staging → marts) ; le dashboard lit les marts,
-  jamais des calculs à la volée dans l'UI
+- **Couche analytique** : schéma PostgreSQL dédié `analytics` (vues `stg_*` + vues matérialisées
+  `mart_*`), hors Alembic (sauf `analytics.refresh_log`, seule table réelle), reconstruit par
+  `backend/app/analytics/runner.py` (`build`/`refresh`) depuis `manifest.yml`. Le dashboard lit
+  les marts, jamais des calculs à la volée dans l'UI.
 - **Hébergement** : Vercel + Postgres managé, offres gratuites, hébergement UE
+
+## Tâche planifiée (cron)
+
+- `backend/vercel.json` déclare un cron **quotidien** `0 3 * * *` sur
+  `POST /api/v1/admin/demo-reset` : `TRUNCATE` des tables opérationnelles (liste en dur) +
+  reseed (`reference` puis `demo`) + rafraîchissement des marts analytics. Authentifié par
+  `Authorization: Bearer $CRON_SECRET`, comparé en temps constant côté backend.
 
 ## Règles propres au projet
 
 - **Le dépôt est public.** Aucun secret, aucune donnée réelle, aucune référence client.
   Toutes les données de démonstration sont fictives et générées.
-- **Intégration externe unique** : API INSEE Sirene (enrichissement société par SIRET).
-  Un fallback en saisie manuelle est obligatoire — la démo ne doit jamais dépendre
-  de la disponibilité d'un tiers.
+- **Intégration externe unique** : API INSEE Sirene (enrichissement société par SIRET), via
+  `recherche-entreprises.api.gouv.fr` par défaut (sans clé) — `INSEE_API_KEY` optionnelle
+  active le provider Sirene officiel. Un fallback en saisie manuelle est obligatoire — la démo
+  ne doit jamais dépendre de la disponibilité d'un tiers.
 - **Périmètre figé** : la liste `Won't have` du brief ne se rouvre pas en cours de jalon.
   Notamment : pas d'application native, pas de multi-tenant, pas d'orchestration Airflow.
-- Les données de démo sont réinitialisées chaque nuit.
+- Les données de démo sont réinitialisées chaque nuit (cron ci-dessus).
