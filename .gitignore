@@ -1,0 +1,57 @@
+# --- Contexte projet & outillage Claude (jamais versionnés) ---
+contexte/
+.claude/
+CLAUDE.local.md
+.agent-team/
+.seo-team/
+.team-autom/
+.content-team/
+.brainstorm/
+.next-tool/
+
+# --- Secrets & environnement ---
+.env
+.env.*
+!.env.example
+*.pem
+*.key
+
+# --- Python ---
+venv/
+.venv/
+env/
+__pycache__/
+*.py[cod]
+*.egg-info/
+.pytest_cache/
+.mypy_cache/
+.ruff_cache/
+.coverage
+htmlcov/
+
+# --- Node / Next.js ---
+node_modules/
+.next/
+out/
+dist/
+build/
+.turbo/
+*.tsbuildinfo
+npm-debug.log*
+yarn-error.log*
+pnpm-debug.log*
+
+# --- Base de données & médias de démo ---
+*.sqlite
+*.sqlite3
+*.db
+/media/
+/uploads/
+
+# --- Éditeurs & OS ---
+.vscode/
+.idea/
+*.swp
+.DS_Store
+Thumbs.db
+desktop.ini
