@@ -1,0 +1,22 @@
+services:
+  db:
+    image: postgres:16
+    container_name: cardan_db
+    restart: unless-stopped
+    environment:
+      POSTGRES_USER: cardan
+      POSTGRES_PASSWORD: cardan
+      POSTGRES_DB: cardan
+    ports:
+      # 5433 pour ne pas heurter une instance PostgreSQL locale sur le port standard 5432
+      - "5433:5432"
+    volumes:
+      - cardan_db_data:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U cardan -d cardan"]
+      interval: 5s
+      timeout: 5s
+      retries: 10
+
+volumes:
+  cardan_db_data:

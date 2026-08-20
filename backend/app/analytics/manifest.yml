@@ -1,0 +1,18 @@
+# Manifeste analytics — plan.md § 3.7. Déclare l'ordre de construction des modèles.
+# `runner.py` lit ce fichier : `build` (drop en ordre inverse, create en ordre déclaré),
+# `refresh` (REFRESH MATERIALIZED VIEW CONCURRENTLY sur chaque mart, connexion autocommit).
+#
+# Convention (voir .claude/instructions/analytics-sql.instructions.md) :
+#   - stg_*  : vues non matérialisées, un modèle par table opérationnelle source
+#   - mart_* : vues matérialisées, une par question métier, index unique obligatoire
+
+staging:
+  - name: stg_societes
+    file: staging/stg_societes.sql
+  - name: stg_vehicules
+    file: staging/stg_vehicules.sql
+
+marts:
+  - name: mart_saisie_quotidienne
+    file: marts/mart_saisie_quotidienne.sql
+    unique_index_columns: [jour, operatrice_id]

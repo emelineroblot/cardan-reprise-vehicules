@@ -1,0 +1,205 @@
+name: CI
+
+on:
+  push:
+  pull_request:
+
+jobs:
+  gitleaks:
+    name: Secrets (gitleaks)
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+      - name: gitleaks
+        uses: gitleaks/gitleaks-action@v2
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+
+  backend:
+    name: Backend — install → lint → type-check → migrate → seed → test
+    runs-on: ubuntu-latest
+    services:
+      postgres:
+        image: postgres:16
+        env:
+          POSTGRES_USER: cardan
+          POSTGRES_PASSWORD: cardan
+          POSTGRES_DB: cardan
+        ports:
+          - 5433:5432
+        options: >-
+          --health-cmd "pg_isready -U cardan -d cardan"
+          --health-interval 5s
+          --health-timeout 5s
+          --health-retries 10
+    env:
+      # Migrations/seed tournent contre `cardan` (image du déploiement réel) ; les tests pytest
+      # utilisent `cardan_test`, recréée et pilotée indépendamment par tests/conftest.py — les
+      # deux ne se marchent pas dessus.
+      ENVIRONMENT: local
+      DATABASE_URL: postgresql+psycopg://cardan:cardan@localhost:5433/cardan
+      DATABASE_URL_DIRECT: postgresql+psycopg://cardan:cardan@localhost:5433/cardan
+      JWT_SECRET: ci-secret-at-least-32-bytes-long-xxxxxxxxxxxxxxx
+      CRON_SECRET: ci-cron-secret
+      COMPANY_LOOKUP_PROVIDER: disabled
+    defaults:
+      run:
+        working-directory: backend
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Setup Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+
+      # install
+      - name: Install dependencies
+        run: |
+          python -m pip install --upgrade pip
+          pip install -e ".[dev]"
+
+      # lint
+      - name: ruff check
+        run: ruff check .
+      - name: ruff format --check
+        run: ruff format --check .
+
+      # type-check
+      - name: mypy
+        run: mypy app
+
+      # migrate
+      - name: Prepare database (extension pgcrypto)
+        run: |
+          PGPASSWORD=cardan psql -h localhost -p 5433 -U cardan -d cardan -c "CREATE EXTENSION IF NOT EXISTS pgcrypto;"
+      - name: alembic upgrade head
+        run: alembic upgrade head
+
+      # seed — filet CI : seed et migrations ne peuvent pas diverger sans faire virer la CI au rouge
+      - name: seed reference
+        run: python -m app.cli seed --profile reference
+      - name: seed demo
+        run: python -m app.cli seed --profile demo
+      - name: analytics build
+        run: python -m app.cli analytics build
+
+      # test
+      - name: pytest
+        run: pytest -q --cov=app --cov-report=term-missing
+
+  frontend:
+    name: Frontend — install → lint → type-check → build → test
+    runs-on: ubuntu-latest
+    defaults:
+      run:
+        working-directory: frontend
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Setup Node
+        uses: actions/setup-node@v4
+        with:
+          node-version: "20"
+          cache: "npm"
+          cache-dependency-path: frontend/package-lock.json
+
+      - name: Install dependencies
+        run: npm ci
+
+      - name: ESLint
+        run: npm run lint
+
+      - name: tsc --noEmit
+        run: npm run type-check
+
+      - name: Vitest
+        run: npm run test
+
+      - name: Build
+        run: npm run build
+
+  contract-drift:
+    name: Contrat d'API — openapi.json → schema.d.ts (décision I)
+    runs-on: ubuntu-latest
+    # Démarre le backend réel et regénère le client TypeScript depuis son /openapi.json, puis
+    # échoue si `frontend/src/lib/api/schema.d.ts` diffère du fichier commité. C'est le garde-fou
+    # que la revue de J1 a signalé comme manquant : sans lui, une divergence de contrat entre
+    # dev-backend et dev-frontend (ex. `POST /auth/login` à plat vs `{user: ...}`, forme des
+    # candidats de `duplicate-check`) n'est découverte qu'en démo, jamais en CI.
+    services:
+      postgres:
+        image: postgres:16
+        env:
+          POSTGRES_USER: cardan
+          POSTGRES_PASSWORD: cardan
+          POSTGRES_DB: cardan
+        ports:
+          - 5433:5432
+        options: >-
+          --health-cmd "pg_isready -U cardan -d cardan"
+          --health-interval 5s
+          --health-timeout 5s
+          --health-retries 10
+    env:
+      ENVIRONMENT: local
+      DATABASE_URL: postgresql+psycopg://cardan:cardan@localhost:5433/cardan
+      DATABASE_URL_DIRECT: postgresql+psycopg://cardan:cardan@localhost:5433/cardan
+      COMPANY_LOOKUP_PROVIDER: disabled
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Setup Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+
+      - name: Install backend dependencies
+        working-directory: backend
+        run: |
+          python -m pip install --upgrade pip
+          pip install -e ".[dev]"
+
+      - name: Prepare database (extension pgcrypto)
+        run: |
+          PGPASSWORD=cardan psql -h localhost -p 5433 -U cardan -d cardan -c "CREATE EXTENSION IF NOT EXISTS pgcrypto;"
+
+      - name: alembic upgrade head
+        working-directory: backend
+        run: alembic upgrade head
+
+      - name: Start backend (background)
+        working-directory: backend
+        run: |
+          nohup uvicorn app.main:app --host 127.0.0.1 --port 8000 > uvicorn.log 2>&1 &
+          echo "Attente du démarrage du backend..."
+          for i in $(seq 1 30); do
+            if curl -sf http://127.0.0.1:8000/api/v1/health > /dev/null; then
+              echo "Backend prêt."
+              exit 0
+            fi
+            sleep 1
+          done
+          echo "Le backend n'a jamais répondu à /api/v1/health :"
+          cat uvicorn.log
+          exit 1
+
+      - name: Setup Node
+        uses: actions/setup-node@v4
+        with:
+          node-version: "20"
+          cache: "npm"
+          cache-dependency-path: frontend/package-lock.json
+
+      - name: Install frontend dependencies
+        working-directory: frontend
+        run: npm ci
+
+      - name: Régénérer schema.d.ts depuis le backend réel
+        working-directory: frontend
+        run: npm run gen:api
+
+      - name: Échoue si le schéma généré diffère du schéma commité
+        run: git diff --exit-code -- frontend/src/lib/api/schema.d.ts
