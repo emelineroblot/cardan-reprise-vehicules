@@ -8,14 +8,17 @@ Ordre non négociable :
    tournait auparavant dans sa propre connexion `engine.begin()`, commitée avant même que les
    seeds ne démarrent. Un échec de seed laissait alors la base vide jusqu'à intervention
    manuelle. Tout se passe maintenant sur la session `db`, un seul `commit()` final.
-3. purge du préfixe `runtime/` du bucket Supabase (hors transaction) — sans objet en J1
-   (aucun upload réel n'existe encore, décision C).
+3. purge du préfixe `runtime/` du backend de stockage photos (hors transaction) — sans objet en
+   J1 (aucun upload réel n'existait encore, décision C) ; câblée en J2 sur l'abstraction
+   `PhotoStorage` (`app/services/storage/`), best-effort : un échec de purge ne fait jamais
+   échouer le reset (le statut `demo_reset_run` reste `succes`, seul un avertissement est loggué).
 4. `analytics build` + `refresh` (connexion autocommit séparée, après le commit ci-dessus).
 5. écriture d'une ligne `demo_reset_run`.
 """
 
 from __future__ import annotations
 
+import logging
 from datetime import UTC, datetime
 from uuid import uuid4
 
@@ -24,10 +27,14 @@ from sqlalchemy.orm import Session
 
 from app.analytics.runner import build as analytics_build
 from app.analytics.runner import refresh as analytics_refresh
+from app.core.config import get_settings
 from app.db.session import SessionLocal
 from app.models.demo import DemoResetRun
 from app.seed.demo import SEED_VERSION, seed_demo
 from app.seed.reference import seed_reference
+from app.services.storage.service import get_storage_backend
+
+logger = logging.getLogger(__name__)
 
 # Liste en dur — jamais de découverte dynamique (plan.md § 4 décision D).
 OPERATIONAL_TABLES = (
@@ -80,6 +87,12 @@ def run_demo_reset() -> dict:
         # analytics build/refresh — connexions autocommit séparées (§ 3.7-6).
         analytics_build()
         analytics_refresh()
+
+        try:
+            settings = get_settings()
+            get_storage_backend().delete_prefix(bucket=settings.supabase_bucket, prefix="runtime/")
+        except Exception:  # noqa: BLE001 — purge best-effort, ne fait jamais échouer le reset
+            logger.warning("Purge du préfixe runtime/ échouée (non bloquant).", exc_info=True)
     except Exception as exc:  # noqa: BLE001 — tracé dans demo_reset_run, jamais masqué
         db.rollback()
         status = "echec"

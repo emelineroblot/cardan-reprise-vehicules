@@ -10,6 +10,7 @@ from __future__ import annotations
 import os
 import subprocess
 import sys
+import tempfile
 from collections.abc import Generator
 from pathlib import Path
 from uuid import uuid4
@@ -31,6 +32,11 @@ os.environ["DATABASE_URL_DIRECT"] = _TEST_DATABASE_URL
 os.environ.setdefault("JWT_SECRET", "test-secret-at-least-32-bytes-long-xxxxx")
 os.environ.setdefault("CRON_SECRET", "test-cron-secret")
 os.environ["COMPANY_LOOKUP_PROVIDER"] = "disabled"  # jamais de réseau réel pendant les tests
+# Stockage photos — répertoire temporaire dédié à la session de test, jamais le `var/storage`
+# de dev (§ 4 décision F : isolation complète). VAPID volontairement absent : le push réel
+# reste désactivé par défaut en test (`app/services/push.py::is_push_enabled`), voir
+# `tests/unit/test_push.py` pour le cas où il est explicitement activé.
+os.environ["LOCAL_STORAGE_DIR"] = str(Path(tempfile.mkdtemp(prefix="cardan-test-storage-")))
 
 from app.core.config import get_settings  # noqa: E402
 from app.core.security import hash_password  # noqa: E402

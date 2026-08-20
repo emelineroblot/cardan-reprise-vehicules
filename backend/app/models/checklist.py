@@ -5,7 +5,7 @@ from __future__ import annotations
 from uuid import UUID
 
 from sqlalchemy import CheckConstraint, ForeignKey, Integer, String, UniqueConstraint, text
-from sqlalchemy.orm import Mapped, mapped_column
+from sqlalchemy.orm import Mapped, mapped_column, relationship
 
 from app.db.base import Base
 from app.models.enums import ChecklistCategorie, ResponseType, check_in
@@ -19,6 +19,12 @@ class ChecklistTemplate(Base):
     libelle: Mapped[str] = mapped_column(String(255), nullable=False)
     version: Mapped[int] = mapped_column(Integer, nullable=False, default=1)
     is_active: Mapped[bool] = mapped_column(nullable=False, default=True)
+
+    # `GET /checklist-templates/{id}` (brief J2, revue orchestrateur) — triés par `ordre`,
+    # chargés explicitement (`selectinload`), même convention que `Vehicle.state_history`.
+    items: Mapped[list[ChecklistItemTemplate]] = relationship(
+        order_by="ChecklistItemTemplate.ordre", viewonly=True
+    )
 
     __table_args__ = (UniqueConstraint("code", name="uq_checklist_template_code"),)
 

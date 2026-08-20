@@ -28,5 +28,11 @@ export function middleware(request: NextRequest) {
 }
 
 export const config = {
-  matcher: ["/((?!api|_next/static|_next/image|favicon.ico|demo-photos).*)"],
+  // Assets PWA exclus explicitement (manifest.json, sw.js, icônes, page hors-ligne) : un
+  // 307 vers /login sur `sw.js` casse l'enregistrement du service worker (l'origine du
+  // script doit répondre 200, sans redirection), et un manifeste servi en HTML invalide
+  // le critère d'installabilité — ni l'un ni l'autre n'a de session à vérifier.
+  matcher: [
+    "/((?!api|_next/static|_next/image|favicon.ico|demo-photos|manifest\\.json|sw\\.js|hors-ligne\\.html|icons/).*)",
+  ],
 };

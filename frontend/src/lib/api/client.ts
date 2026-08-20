@@ -30,6 +30,9 @@ export type ApiErrorCode =
   | "siret_not_found"
   | "siret_lookup_unavailable"
   | "conflict"
+  | "inspection_not_allowed"
+  | "inspection_incomplete"
+  | "photo_quota_exceeded"
   | "internal_error"
   | (string & {});
 
@@ -113,12 +116,49 @@ export async function apiFetch<T = unknown>(
   return payload as T;
 }
 
+/**
+ * Upload `multipart/form-data` (photos, plan.md § 6 J2 : `POST /vehicles/{id}/photos`) —
+ * jamais de `JSON.stringify`/`Content-Type` posé à la main, le navigateur fixe la
+ * boundary. Même conversion d'erreur qu'`apiFetch` (format unique § 3.5).
+ */
+export async function apiUpload<T = unknown>(path: string, formData: FormData): Promise<T> {
+  const url = `${API_BASE}${path.startsWith("/") ? path : `/${path}`}`;
+
+  let res: Response;
+  try {
+    res = await fetch(url, {
+      method: "POST",
+      credentials: "same-origin",
+      headers: { Accept: "application/json" },
+      body: formData,
+    });
+  } catch {
+    throw new ApiError(0, "internal_error", "Impossible de contacter le serveur. Vérifiez votre connexion.");
+  }
+
+  const contentType = res.headers.get("content-type") ?? "";
+  const payload = contentType.includes("application/json") ? await res.json().catch(() => null) : null;
+
+  if (!res.ok) {
+    if (payload && typeof payload === "object" && "error" in (payload as Record<string, unknown>)) {
+      const errBody = (payload as ApiErrorBody).error;
+      throw new ApiError(res.status, errBody.code, errBody.message, errBody.details ?? null);
+    }
+    throw new ApiError(res.status, "internal_error", `Erreur inattendue du serveur (${res.status}).`);
+  }
+
+  return payload as T;
+}
+
 export const api = {
   get: <T>(path: string, options?: ApiFetchOptions) => apiFetch<T>(path, { ...options, method: "GET" }),
   post: <T>(path: string, body?: Json, options?: ApiFetchOptions) =>
     apiFetch<T>(path, { ...options, method: "POST", body }),
   patch: <T>(path: string, body?: Json, options?: ApiFetchOptions) =>
     apiFetch<T>(path, { ...options, method: "PATCH", body }),
+  put: <T>(path: string, body?: Json, options?: ApiFetchOptions) =>
+    apiFetch<T>(path, { ...options, method: "PUT", body }),
   delete: <T>(path: string, options?: ApiFetchOptions) =>
     apiFetch<T>(path, { ...options, method: "DELETE" }),
+  upload: apiUpload,
 };

@@ -306,7 +306,9 @@ push : seeds et migrations ne peuvent pas diverger sans que la CI vire au rouge.
   de SEO sur une application interne authentifiée ; seules la page d'accueil et `/login` restent
   statiques (elles servent au préchauffage).
 - **Photos (J2) : Supabase Storage, bucket privé en région UE**, upload direct navigateur par URL
-  signée — la fonction Python ne voit jamais l'octet. Vercel Blob a été écarté faute de région UE
+  signée — la fonction Python ne voit jamais l'octet. **→ Révisée le 2026-08-20 (J2)** : J2 livre
+  une abstraction `PhotoStorage` sur disque local, l'octet transitant par le backend ; le stockage
+  objet reste la cible du déploiement. Voir « Stockage des photos » plus bas. Vercel Blob a été écarté faute de région UE
   garantie, `bytea` faute de quota. **Le seed ne stocke aucune photo** : les véhicules de démo
   référencent un pool de visuels statiques (`is_placeholder = true`), soit 0 octet de quota
   consommé ; seules les photos prises pendant une démo occupent le bucket, et elles disparaissent
@@ -315,3 +317,180 @@ push : seeds et migrations ne peuvent pas diverger sans que la CI vire au rouge.
   **peut être négative** (aucun `GREATEST(0, …)`), et une valeur de revente absente donne
   `marge_cents = NULL` avec `has_marge = false`, l'UI affichant « — » et jamais « 0 € ». Confondre
   « pas de valeur » et « zéro » est le bug classique de tout tableau de bord de marge.
+
+## Moteur hors ligne du module terrain — brouillon local, file d'envoi, idempotence par `client_uuid`
+*Décidé le 2026-08-20 — run `pwa-terrain` (J2)*
+
+**Décision.** Le contrôle terrain s'écrit **d'abord en local** (IndexedDB : un brouillon
+d'inspection par véhicule, un store `photos` portant les blobs compressés), jamais directement sur
+le réseau. Un moteur de synchronisation monté dans le layout applicatif rejoue la file **au premier
+plan** : minuteur de 20 s, évènement `online`, après chaque écriture locale, et bouton « Réessayer »
+— uniquement si l'onglet est visible. Chaque objet naît côté client avec un `client_uuid` ;
+`POST /inspections` et `POST /vehicles/{id}/photos` sont **idempotents par ce `client_uuid`** côté
+serveur, garanti par une contrainte d'unicité en base et non par la seule lecture applicative. Le
+rejeu ne repose sur Background Sync à aucun moment.
+
+**Pourquoi.** Le critère d'acceptation est « couper le réseau en plein contrôle ne perd aucune
+saisie, et la reprise renvoie les photos en attente ». Une écriture réseau optimiste avec repli
+local aurait laissé deux sources de vérité ; l'écriture locale d'abord n'en laisse qu'une, et la
+synchronisation devient un **rejeu**, pas une devinette. L'identifiant généré côté client est ce qui
+rend ce rejeu sûr : quand la réponse de la première tentative s'est perdue, le client ne peut pas
+savoir si le serveur a reçu — seul un identifiant qu'il a lui-même choisi permet au serveur de
+répondre « je l'ai déjà ». Background Sync a été écarté comme garantie unique : il aurait masqué le
+fait que le rejeu au premier plan doit de toute façon être correct.
+
+**Conséquences.** Quatre règles qui tiennent tout l'édifice, et qui ont chacune coûté un bug réel
+dans ce jalon :
+- **Relire l'état frais juste avant toute écriture réseau**, et n'effacer un marqueur `_dirty` que
+  si le contenu relu est identique à ce qui vient d'être envoyé. Sinon une saisie faite pendant
+  l'`await` est perdue **côté serveur** alors que l'écran local paraît complet.
+- **L'atomicité vient de la transaction IndexedDB** (lecture + écriture dans la même transaction
+  `readwrite`), jamais d'un verrou tenu dans une variable de module : IndexedDB est partagé par
+  toute l'origine, un verrou JS ne protège que l'onglet courant (PWA installée + onglet navigateur
+  = deux moteurs concurrents).
+- **L'éligibilité d'un brouillon à un tick dérive de l'état réel de la file**, photos `queued`/
+  `failed` comprises — pas des seuls marqueurs du brouillon. Une file sans déclencheur propre ne
+  part jamais.
+- **L'état du brouillon est un état d'appareil**, tenu en `useState` + relecture explicite après
+  chaque écriture, hors TanStack Query — qui reste réservé aux caches de réponses serveur (listes
+  véhicules, missions, notifications). Corollaire : purge des photos `sent` après confirmation de
+  soumission et `navigator.storage.persist()` au montage, sinon les blobs (200-400 Ko pièce)
+  s'accumulent véhicule après véhicule jusqu'au `QuotaExceededError`.
+
+## Stockage des photos — abstraction `PhotoStorage`, disque local aujourd'hui, stockage objet au déploiement
+*Décidé le 2026-08-20 — run `pwa-terrain` (J2). Révise la décision de second rang du 2026-08-20 (J1)
+« Photos : Supabase Storage, upload direct navigateur par URL signée ».*
+
+**Décision.** Les octets ne sont jamais manipulés directement par le code métier : un port
+`PhotoStorage` (interface), une implémentation `LocalDiskStorage` (active aujourd'hui, sous
+`backend/var/`, gitignorée) et une fabrique `get_storage_backend()` qui est **le seul point de
+bascule**. `PhotoRead.url` porte une URL de forme stable, consommée telle quelle par le front et
+**jamais reconstruite** par lui ; l'implémentation locale y renvoie une route backend authentifiée
+par cookie, une implémentation objet y renverra une URL signée. Le checksum SHA-256 est recalculé et
+comparé côté serveur, jamais seulement transmis.
+
+**Pourquoi.** Deux raisons, dans cet ordre.
+
+**1. Ne pas interrompre le développement.** Brancher Supabase pendant J2 supposait de créer un
+projet, d'en récupérer les clés et de les transmettre au pipeline : une interruption dans un travail
+explicitement délégué, et des secrets à manipuler dans le contexte d'un dépôt public. Le disque local
+permet à J2 d'avancer sans rien de tout cela.
+
+**2. Garder le choix du fournisseur ouvert jusqu'à la mise en ligne** — c'est le point qui compte le
+plus pour qui reprend ce projet. Ce n'est **pas** « Supabase, plus tard » : l'abstraction existe
+précisément pour que le fournisseur de stockage soit choisi **au déploiement, sur des critères de
+déploiement** (région, quota, coût, latence, dépendance acceptable). La décision J1 (Supabase
+Storage, upload direct navigateur par URL signée) n'est donc plus acquise — elle redevient une option
+à réévaluer parmi d'autres, et non un simple travail restant à faire.
+
+En appui, deux faits qui n'ont pas motivé la décision mais la confirment : le disque local est
+**inutilisable en serverless** (chaque invocation est éphémère, § « Contraintes d'exploitation »),
+donc la bascule vers un stockage objet est un **prérequis de déploiement** et non une amélioration
+optionnelle ; et n'exiger ni compte externe ni secret rend le dépôt public clonable et démontrable
+tel quel. L'abstraction fait que ce prérequis coûte une classe et un branchement, pas une réécriture :
+la seule différence de comportement observable est la nature de l'URL, déjà cachée derrière un champ
+de contrat stable.
+
+**Conséquences.** Aucun module n'importe l'implémentation directement, tout passe par la fabrique :
+c'est cette propriété qu'il faut préserver. Le passage par le backend pour servir l'octet a un effet
+de bord positif conservé aujourd'hui — scoping par véhicule, un chauffeur ne peut pas lire la photo
+d'un véhicule qui n'est pas le sien — qu'une URL signée ne donnera pas gratuitement : à retraiter au
+moment de la bascule. Voir aussi le piège de préfixe d'URL dans [pieges-projet.md](pieges-projet.md).
+
+## Notifications — persistées en base comme chemin nominal, web push strictement optionnel
+*Décidé le 2026-08-20 — run `pwa-terrain` (J2)*
+
+**Décision.** Une notification est **une ligne en base**, écrite dans la même transaction que
+l'affectation de mission. La pastille et la liste ne dépendent d'aucune clé, d'aucune permission
+navigateur, d'aucun service tiers. Le web push est un **bonus** : il n'est proposé que si
+`GET /notifications/push-public-key` renvoie `enabled: true`, ce qui n'est vrai que si des clés
+VAPID existent côté serveur. L'envoi push a lieu **après** le `commit` métier, de façon synchrone
+mais bornée par un délai maximal court, et un abonnement n'est désactivé que sur un `404`/`410`.
+
+**Pourquoi.** Une démonstration ne doit jamais dépendre d'une autorisation navigateur : un refus de
+permission, un navigateur non compatible ou une clé absente rendrait le critère « le chauffeur
+reçoit une notification à l'affectation » inobservable devant un prospect. En persistant d'abord, le
+critère est tenu **par construction** ; le push n'ajoute que l'immédiateté. L'ordre inverse
+(notifier puis persister) aurait fait dépendre une affectation déjà actée d'un canal externe. La
+disponibilité du push est un **fait serveur** : le front l'interroge à l'exécution plutôt que de
+dupliquer une variable d'environnement, qui se désynchroniserait au premier déploiement.
+
+**Conséquences.** L'envoi reste synchrone dans la requête HTTP, contre l'intuition : sur une
+fonction serverless, rien ne garantit que le processus survive à l'envoi de la réponse, donc une
+tâche de fond aurait rendu le taux de livraison non déterministe et l'échec invisible. Le pire cas
+est borné par le délai maximal (3 s) multiplié par le nombre d'abonnements actifs du destinataire —
+acceptable en mono-appareil, à revoir (parallélisation ou budget global) si le multi-appareil
+devient réel. `send_web_push` renvoie une issue à trois valeurs
+(`sent`/`failed_transient`/`failed_permanent`) et non un booléen : tout futur appelant doit traiter
+les trois. Le chemin push réellement activé n'a jamais été exercé en conditions réelles, faute de
+clés VAPID en local.
+
+## Une inspection par mission — contrainte totale en base, portée `mission_id` et non `vehicle_id`
+*Décidé le 2026-08-20 — run `pwa-terrain` (J2)*
+
+**Décision.** `UNIQUE(mission_id)` sur `inspection` (contrainte **totale**, pas un index partiel),
+migration `0003`, doublée d'une garde applicative : `POST /inspections` renvoie l'inspection déjà
+existante de la mission — soumise ou non — au lieu d'en créer une seconde.
+
+**Pourquoi.** L'idempotence par `client_uuid` seule ne suffisait pas : un rechargement d'écran juste
+après soumission fait naître un `client_uuid` neuf, et le véhicule restant en `CONTROLE_EN_COURS`
+jusqu'à la transition suivante, les préconditions serveur étaient toujours satisfaites — une seconde
+inspection orpheline se créait sans le moindre signal. La portée **par véhicule** a été écartée après
+vérification du tableau des transitions : aucune transition ne fait repasser un véhicule par
+`CONTROLE_EN_COURS` pour une même mission, mais un véhicule **réaffecté** obtient une nouvelle
+mission et peut légitimement porter une inspection par mission historique. `mission_id` est donc la
+portée exacte, et un index partiel aurait dû encoder la même règle en moins lisible. Renvoyer
+l'existante plutôt qu'un `409` a été préféré parce que le front n'a alors aucune branche
+supplémentaire à écrire : il reçoit la donnée qu'il demandait.
+
+**Conséquences.** La contrainte ne fait pas que protéger, elle **diagnostique** : posée, elle a
+immédiatement révélé une course frontend jusque-là invisible (deux créations de brouillon
+simultanées au montage, donc deux `client_uuid`), qui produisait auparavant une ligne orpheline
+muette. Argument durable en faveur de la défense en profondeur sur tout `get_or_create`. La
+migration `0003` embarque un nettoyage de données — doublons produits par le bug, enfants supprimés
+d'abord faute de `ON DELETE CASCADE` — **non réversible dans son `downgrade`**, assumé.
+
+## Parcours photo — 12 angles imposés, plafond de 30, validés côté serveur
+*Décidé le 2026-08-20 — run `pwa-terrain` (J2)*
+
+**Décision.** Les 12 angles obligatoires et le plafond de 30 photos par véhicule sont des règles
+**serveur**. `POST /inspections/{id}/submit` refuse en `409 inspection_incomplete` avec le détail
+(`missing_items`, `missing_angles`) et ne compte que les photos réellement reçues
+(`upload_state = 'envoyee'`) ; le dépassement du plafond répond `409 photo_quota_exceeded`. Le front
+**dérive** son parcours de `GET /vehicles/{id}/photos/required-angles`, il ne recopie pas la liste
+(un repli d'affichage local existe, purement cosmétique, le temps du premier succès réseau).
+
+**Pourquoi.** Même principe qu'en J1 avec `GET /vehicles/{id}/transitions` : une règle métier
+dupliquée dans les deux couches diverge, et c'est la couche cliente qui ment. L'enjeu est ici plus
+fort qu'un bouton mal affiché — un contrôle validé avec un angle manquant est un dossier
+inexploitable. Valider côté serveur signifie aussi que le mode hors ligne ne peut pas devenir un
+contournement : la file peut retarder l'arrivée des octets, elle ne peut pas fabriquer une
+complétude. Le checksum recalculé côté serveur relève de la même logique — une photo tronquée par
+une coupure en cours d'envoi est refusée, pas stockée corrompue.
+
+**Conséquences.** L'interface ne peut afficher qu'un **pré-contrôle** : le bouton de soumission est
+désactivé avec la liste de ce qui manque, mais le refus serveur reste possible et doit être affiché
+tel quel. Le plafond serveur porte sur le **véhicule, toutes phases confondues**, alors que l'écran
+ne compte que l'inspection courante — voir [pieges-projet.md](pieges-projet.md). L'angle `defaut`
+est le seul répétable ; les phases atelier (`avant_travaux`, `apres_travaux`) sont explicitement
+refusées en J2 et s'ouvriront en J3 par ajout, pas par révision.
+
+## Décisions de second rang — J2
+*Décidé le 2026-08-20 — run `pwa-terrain` (J2)*
+
+- **`mission` reste en lecture seule côté API.** Création, prise de rendez-vous, clôture et
+  annulation sont des **effets** de `POST /vehicles/{id}/transitions`, jamais des endpoints propres.
+  Prolonge le principe J1 « un seul point d'entrée » : aucune divergence possible entre l'état d'un
+  véhicule et celui de sa mission.
+- **L'inspection est créée par le client, pas par la transition `RDV_PLANIFIE → CONTROLE_EN_COURS`.**
+  Lu littéralement, le plan associait la création à la transition ; un effet serveur aurait imposé
+  un aller-retour réseau synchrone à l'instant précis où le chauffeur commence son contrôle — soit
+  le moment que le mode hors ligne doit protéger. Le `client_uuid` doit naître côté client.
+- **Le référentiel de checklist est exposé en liste + détail** (`/checklist-templates`), pas en
+  « modèle actif » implicite : une notion de modèle courant casserait au premier versionnement, et
+  une inspection doit pouvoir référencer un modèle désactivé. Ouvert à tout rôle authentifié (donnée
+  de référence, non sensible).
+- **Caméra par `<input capture="environment">`, pas `getUserMedia`.** Le flux vidéo live donne une
+  mise en cadre plus fine mais dépend des permissions et des particularités de chaque navigateur
+  mobile ; la capture déléguée à l'application caméra du système est robuste sur des appareils non
+  maîtrisés à l'avance — exactement le contexte d'une démonstration.

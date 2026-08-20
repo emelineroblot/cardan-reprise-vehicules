@@ -25,12 +25,22 @@ dependencies = [
 ]
 
 [project.optional-dependencies]
+# Web push (brief J2) est optionnel et désactivé par défaut (`app/services/push.py`) : la
+# dépendance est en dehors du bundle de production (`requirements.txt`, § 7) tant qu'elle n'a
+# jamais été explicitement demandée. Un déploiement qui active VAPID compile ses dépendances
+# avec `uv pip compile pyproject.toml --extra webpush -o requirements.txt` (§ 3.8-6, « dépendances
+# légères » — payer aiohttp/cryptography au cold start pour une fonctionnalité inutilisée est un
+# mauvais compromis sur une fonction serverless).
+webpush = [
+    "pywebpush>=2.0,<3",
+]
 dev = [
     "pytest>=8.3,<9",
     "pytest-cov>=6.0,<7",
     "ruff>=0.7,<0.8",
     "mypy>=1.13,<2",
     "types-PyYAML>=6.0,<7",
+    "cardan-backend[webpush]",
 ]
 
 [build-system]

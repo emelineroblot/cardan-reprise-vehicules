@@ -14,13 +14,16 @@ export function hasRole(user: AppUser | null | undefined, allowed: Role[]): bool
 /** Route d'atterrissage par rôle après connexion. */
 export function homeRouteForRole(role: Role): string {
   switch (role) {
+    case "chauffeur":
+      // J2 : le chauffeur atterrit directement sur ses missions terrain, pas sur la
+      // liste globale (dont beaucoup de colonnes financières ne le concernent pas).
+      return "/missions";
     case "operatrice":
     case "administrateur":
       return "/vehicules";
-    case "chauffeur":
     case "atelier":
-      // J2/J3 : espaces dédiés à venir. En J1, tous les rôles retombent sur la liste
-      // (le cloisonnement ligne côté backend limite déjà ce qu'ils y voient).
+      // J3 : espace atelier à venir. En attendant, retombe sur la liste (le
+      // cloisonnement ligne côté backend limite déjà ce qu'il y voit).
       return "/vehicules";
     default:
       return "/vehicules";

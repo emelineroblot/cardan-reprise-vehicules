@@ -265,3 +265,154 @@ export const REFUS_MOTIF_LABELS: Record<RefusMotif, string> = {
   vendeur_retracte: "Vendeur rétracté",
   autre: "Autre",
 };
+
+// --- J2 : missions, inspections, checklist, photos, notifications --------
+
+export type MissionState = "affectee" | "acceptee" | "rdv_planifie" | "en_cours" | "terminee" | "annulee";
+
+export type MissionVehicleBrief = Omit<components["schemas"]["MissionVehicleBrief"], "state"> & {
+  state: VehicleState;
+};
+
+export type Mission = Omit<components["schemas"]["MissionRead"], "state" | "vehicle"> & {
+  state: MissionState;
+  vehicle: MissionVehicleBrief;
+};
+
+export type UserBrief = Omit<components["schemas"]["UserBrief"], "role"> & { role: Role };
+
+export type ChecklistCategorie = "exterieur" | "interieur" | "mecanique" | "documents" | "securite";
+export type ChecklistResponseType = "ok_ko" | "note_1_5" | "texte" | "numerique";
+
+export type ChecklistItemTemplate = Omit<
+  components["schemas"]["ChecklistItemTemplateRead"],
+  "categorie" | "response_type"
+> & {
+  categorie: ChecklistCategorie;
+  response_type: ChecklistResponseType;
+};
+
+export type ChecklistTemplateBrief = components["schemas"]["ChecklistTemplateBrief"];
+
+export type ChecklistTemplate = Omit<components["schemas"]["ChecklistTemplateRead"], "items"> & {
+  items: ChecklistItemTemplate[];
+};
+
+export type InspectionItem = components["schemas"]["InspectionItemRead"];
+export type InspectionItemUpsert = components["schemas"]["InspectionItemUpsert"];
+
+export type EtatGeneral = "bon" | "moyen" | "mauvais";
+export type InspectionConclusion = "achat_direct" | "travaux_requis" | "refus";
+
+export type Inspection = Omit<
+  components["schemas"]["InspectionRead"],
+  "etat_general" | "conclusion" | "items"
+> & {
+  etat_general: EtatGeneral | null;
+  conclusion: InspectionConclusion | null;
+  items: InspectionItem[];
+};
+
+export type InspectionCreate = components["schemas"]["InspectionCreate"];
+export type InspectionPatch = components["schemas"]["InspectionPatch"];
+export type InspectionSubmitRequest = components["schemas"]["InspectionSubmitRequest"];
+
+/**
+ * Détail renvoyé par `409 inspection_incomplete` (`ApiError.details`) — pas un schéma
+ * Pydantic dédié côté OpenAPI (une `dict` brute dans le corps d'erreur), typé ici à la
+ * main comme `DuplicateExactMatch` (même remarque, § J1 `types.ts`).
+ */
+export interface InspectionIncompleteDetails {
+  missing_items: string[];
+  missing_angles: string[];
+}
+
+export const PHOTO_ANGLES = [
+  "face_avant",
+  "trois_quarts_avant_gauche",
+  "profil_gauche",
+  "trois_quarts_arriere_gauche",
+  "face_arriere",
+  "trois_quarts_arriere_droit",
+  "profil_droit",
+  "trois_quarts_avant_droit",
+  "interieur_avant",
+  "interieur_arriere",
+  "coffre",
+  "compteur",
+  "defaut",
+] as const;
+export type PhotoAngle = (typeof PHOTO_ANGLES)[number];
+
+export type PhotoPhase = "controle" | "avant_travaux" | "apres_travaux";
+export type PhotoUploadState = "en_attente" | "envoyee" | "echouee";
+
+export type Photo = Omit<components["schemas"]["PhotoRead"], "angle" | "phase" | "upload_state"> & {
+  angle: PhotoAngle;
+  phase: PhotoPhase;
+  upload_state: PhotoUploadState;
+};
+
+export type RequiredAnglesResponse = components["schemas"]["RequiredAnglesResponse"];
+
+export type NotificationType = "mission_affectee";
+
+export type Notification = Omit<components["schemas"]["NotificationRead"], "type"> & {
+  type: NotificationType;
+};
+
+export type PushPublicKeyResponse = components["schemas"]["PushPublicKeyResponse"];
+export type PushSubscriptionCreate = components["schemas"]["PushSubscriptionCreate"];
+export type PushSubscriptionRead = components["schemas"]["PushSubscriptionRead"];
+
+export const MISSION_STATE_LABELS: Record<MissionState, string> = {
+  affectee: "Affectée",
+  acceptee: "Acceptée",
+  rdv_planifie: "RDV planifié",
+  en_cours: "Contrôle en cours",
+  terminee: "Terminée",
+  annulee: "Annulée",
+};
+
+export const CHECKLIST_CATEGORIE_LABELS: Record<ChecklistCategorie, string> = {
+  exterieur: "Extérieur",
+  interieur: "Intérieur",
+  mecanique: "Mécanique",
+  documents: "Documents",
+  securite: "Sécurité",
+};
+
+export const ETAT_GENERAL_LABELS: Record<EtatGeneral, string> = {
+  bon: "Bon",
+  moyen: "Moyen",
+  mauvais: "Mauvais",
+};
+
+export const INSPECTION_CONCLUSION_LABELS: Record<InspectionConclusion, string> = {
+  achat_direct: "Achat direct",
+  travaux_requis: "Travaux requis",
+  refus: "Refus",
+};
+
+/**
+ * Libellés et instructions de prise de vue — contenu de PRÉSENTATION uniquement (icône,
+ * phrase d'aide). La liste des angles **requis** et le calcul de complétude restent
+ * dérivés de `GET /vehicles/{id}/photos/required-angles` (voir `lib/offline/`), jamais de
+ * cette table : les 13 clés existent ici seulement parce que l'UI doit savoir comment
+ * *afficher* chaque angle, pas lesquels sont obligatoires.
+ */
+export const PHOTO_ANGLE_LABELS: Record<PhotoAngle, string> = {
+  face_avant: "Face avant",
+  trois_quarts_avant_gauche: "3/4 avant gauche",
+  profil_gauche: "Profil gauche",
+  trois_quarts_arriere_gauche: "3/4 arrière gauche",
+  face_arriere: "Face arrière",
+  trois_quarts_arriere_droit: "3/4 arrière droit",
+  profil_droit: "Profil droit",
+  trois_quarts_avant_droit: "3/4 avant droit",
+  interieur_avant: "Intérieur avant",
+  interieur_arriere: "Intérieur arrière",
+  coffre: "Coffre",
+  compteur: "Compteur (kilométrage)",
+  defaut: "Défaut constaté",
+};

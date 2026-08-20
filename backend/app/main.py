@@ -12,9 +12,15 @@ from fastapi.middleware.cors import CORSMiddleware
 from app.api.v1.admin import router as admin_router
 from app.api.v1.analytics import router as analytics_router
 from app.api.v1.auth import router as auth_router
+from app.api.v1.checklist_templates import router as checklist_templates_router
 from app.api.v1.companies import router as companies_router
 from app.api.v1.duplicates import router as duplicates_router
 from app.api.v1.health import router as health_router
+from app.api.v1.inspections import router as inspections_router
+from app.api.v1.missions import router as missions_router
+from app.api.v1.notifications import router as notifications_router
+from app.api.v1.photos import router as photos_router
+from app.api.v1.users import router as users_router
 from app.api.v1.vehicles import router as vehicles_router
 from app.core.config import get_settings
 from app.core.errors import register_exception_handlers
@@ -44,3 +50,13 @@ app.include_router(vehicles_router, prefix="/api/v1/vehicles", tags=["vehicles"]
 app.include_router(duplicates_router, prefix="/api/v1", tags=["duplicates"])
 app.include_router(analytics_router, prefix="/api/v1/analytics", tags=["analytics"])
 app.include_router(admin_router, prefix="/api/v1/admin", tags=["admin"])
+app.include_router(users_router, prefix="/api/v1/users", tags=["users"])
+app.include_router(missions_router, prefix="/api/v1/missions", tags=["missions"])
+app.include_router(inspections_router, prefix="/api/v1/inspections", tags=["inspections"])
+app.include_router(
+    checklist_templates_router,
+    prefix="/api/v1/checklist-templates",
+    tags=["checklist-templates"],
+)
+app.include_router(photos_router, prefix="/api/v1", tags=["photos"])
+app.include_router(notifications_router, prefix="/api/v1/notifications", tags=["notifications"])

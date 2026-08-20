@@ -24,11 +24,15 @@ import {
 import { ErrorState } from "@/components/ui/error-state";
 import { LoadingState } from "@/components/ui/loading-state";
 import { useApplyTransition, useVehicleTransitions } from "@/lib/api/hooks/useVehicleTransitions";
+import { useUsers } from "@/lib/api/hooks/useUsers";
 import { datetimeLocalToIso, minDatetimeLocalValue } from "@/lib/format/date";
 import { REFUS_MOTIF_LABELS, VEHICLE_STATE_LABELS, type RefusMotif, type TransitionOption } from "@/lib/api/types";
 
 interface ActionsTransitionProps {
   vehicleId: string;
+  /** `lg` : cibles tactiles généreuses pour l'écran de contrôle terrain (mission/[id]).
+   * `default` (J1, inchangé) reste le rendu compact de la fiche véhicule admin/opératrice. */
+  size?: "default" | "lg";
 }
 
 const DESTRUCTIVE_TARGETS = new Set(["REFUSE", "ANNULE"]);
@@ -42,22 +46,18 @@ const REFUS_MOTIF_VALUES = Object.keys(REFUS_MOTIF_LABELS) as RefusMotif[];
  * front alors que le backend les déclare). Le bouton correspondant est désactivé à la place —
  * voir `unsupportedFieldsOf`. Tenir cette liste à jour à chaque champ ajouté à l'automate
  * (`state_machine.py`) plutôt que de la contourner.
+ *
+ * `driver_id` ajouté en J2 : `GET /users?role=chauffeur` (dette J1) débloque enfin la
+ * sélection — voir implementation.md § J2 Backend « GET /users — dette J1 ».
  */
 const SUPPORTED_PAYLOAD_FIELDS = new Set<string>([
   "refus_motif",
   "prix_achat_negocie_cents",
   "rdv_at",
+  "driver_id",
 ]);
 
-/**
- * Message affiché quand un champ requis par le backend n'a pas de saisie côté front. Pas de
- * `<Select>` de chauffeurs pour `driver_id` : aucun endpoint ne liste les comptes `chauffeur`
- * à ce jour (voir implementation.md § Points d'attention) — inventer un contrat ici serait
- * exactement l'erreur que ce correctif corrige à l'inverse.
- */
-const UNSUPPORTED_FIELD_MESSAGES: Record<string, string> = {
-  driver_id: "Sélection de chauffeur indisponible pour l'instant — arrivera avec le module chauffeur (J2).",
-};
+const UNSUPPORTED_FIELD_MESSAGES: Record<string, string> = {};
 
 function unsupportedFieldsOf(option: TransitionOption): string[] {
   return option.requires_payload_fields.filter((field) => !SUPPORTED_PAYLOAD_FIELDS.has(field));
@@ -77,7 +77,7 @@ function unsupportedMessage(fields: string[]): string {
  * connu (`SUPPORTED_PAYLOAD_FIELDS`) a son contrôle de saisie ; un champ inconnu désactive le
  * bouton plutôt que de laisser partir un `payload` incomplet.
  */
-export function ActionsTransition({ vehicleId }: ActionsTransitionProps) {
+export function ActionsTransition({ vehicleId, size = "default" }: ActionsTransitionProps) {
   const transitions = useVehicleTransitions(vehicleId);
   const applyTransition = useApplyTransition(vehicleId);
   const [pending, setPending] = useState<TransitionOption | null>(null);
@@ -85,10 +85,17 @@ export function ActionsTransition({ vehicleId }: ActionsTransitionProps) {
   const [refusMotif, setRefusMotif] = useState<RefusMotif | undefined>(undefined);
   const [prixCents, setPrixCents] = useState<number | null>(null);
   const [rdvAt, setRdvAt] = useState("");
+  const [rdvAdresse, setRdvAdresse] = useState("");
+  const [rdvContactNom, setRdvContactNom] = useState("");
+  const [rdvContactTelephone, setRdvContactTelephone] = useState("");
+  const [driverId, setDriverId] = useState<string | undefined>(undefined);
   // Dérivés de `rdvAt` mais calculés en dehors du rendu (poignées d'événement) : `Date.now()`
   // est impur, l'appeler pendant le rendu casse la règle react-hooks/purity.
   const [rdvAtIsFuture, setRdvAtIsFuture] = useState(false);
   const [rdvAtMin, setRdvAtMin] = useState("");
+
+  const needsDriverId = pending?.requires_payload_fields.includes("driver_id") ?? false;
+  const drivers = useUsers({ role: "chauffeur", is_active: true, limit: 100 }, needsDriverId);
 
   if (transitions.isLoading) {
     return <LoadingState label="Chargement des actions disponibles…" />;
@@ -109,6 +116,10 @@ export function ActionsTransition({ vehicleId }: ActionsTransitionProps) {
     setRefusMotif(undefined);
     setPrixCents(null);
     setRdvAt("");
+    setRdvAdresse("");
+    setRdvContactNom("");
+    setRdvContactTelephone("");
+    setDriverId(undefined);
     setRdvAtIsFuture(false);
     // Calculé une fois à l'ouverture (poignée d'événement, pas pendant le rendu) : borne
     // `min` du champ, purement indicative pour l'utilisateur.
@@ -133,16 +144,24 @@ export function ActionsTransition({ vehicleId }: ActionsTransitionProps) {
     (!pending.requires_reason || reason.trim().length > 0) &&
     (!needsRefusMotif || refusMotif !== undefined) &&
     (!needsPrix || prixCents !== null) &&
-    (!needsRdvAt || rdvAtIsFuture);
+    (!needsRdvAt || rdvAtIsFuture) &&
+    (!needsDriverId || Boolean(driverId));
 
   const handleConfirm = async () => {
     if (!pending || pendingUnsupported.length > 0) return;
     const payload: Record<string, unknown> = {};
     if (needsRefusMotif && refusMotif) payload.refus_motif = refusMotif;
     if (needsPrix && prixCents !== null) payload.prix_achat_negocie_cents = prixCents;
+    if (needsDriverId && driverId) payload.driver_id = driverId;
     if (needsRdvAt) {
       const rdvAtIso = datetimeLocalToIso(rdvAt);
       if (rdvAtIso) payload.rdv_at = rdvAtIso;
+      // Optionnels côté backend (implementation.md § J2 : absents de
+      // `requires_payload_fields`, jamais bloquants) — envoyés seulement s'ils sont
+      // renseignés, la mission garde sinon ses valeurs précédentes.
+      if (rdvAdresse.trim()) payload.rdv_adresse = rdvAdresse.trim();
+      if (rdvContactNom.trim()) payload.rdv_contact_nom = rdvContactNom.trim();
+      if (rdvContactTelephone.trim()) payload.rdv_contact_telephone = rdvContactTelephone.trim();
     }
 
     await applyTransition.mutateAsync({
@@ -152,6 +171,8 @@ export function ActionsTransition({ vehicleId }: ActionsTransitionProps) {
     });
     setPending(null);
   };
+
+  const buttonSizeClass = size === "lg" ? "h-14 px-6 text-base" : undefined;
 
   return (
     <div className="flex flex-wrap gap-2">
@@ -166,6 +187,7 @@ export function ActionsTransition({ vehicleId }: ActionsTransitionProps) {
             disabled={isDisabled}
             aria-disabled={isDisabled || undefined}
             title={isDisabled ? unsupportedMessage(unsupported) : undefined}
+            className={buttonSizeClass}
             onClick={() => openDialog(option)}
           >
             {option.label || VEHICLE_STATE_LABELS[option.to_state]}
@@ -181,6 +203,33 @@ export function ActionsTransition({ vehicleId }: ActionsTransitionProps) {
           </DialogHeader>
 
           <div className="flex flex-col gap-4">
+            {needsDriverId ? (
+              <div>
+                <Label htmlFor="driver_id">Chauffeur</Label>
+                {drivers.isLoading ? (
+                  <p className="mt-1.5 text-sm text-muted-foreground">Chargement des chauffeurs…</p>
+                ) : drivers.error ? (
+                  <ErrorState error={drivers.error} title="Chauffeurs indisponibles" onRetry={() => drivers.refetch()} />
+                ) : (
+                  <Select value={driverId} onValueChange={setDriverId}>
+                    <SelectTrigger id="driver_id" className="mt-1.5 w-full">
+                      <SelectValue placeholder="Sélectionnez un chauffeur…" />
+                    </SelectTrigger>
+                    <SelectContent>
+                      {(drivers.data?.items ?? []).map((driver) => (
+                        <SelectItem key={driver.id} value={driver.id}>
+                          {driver.full_name}
+                        </SelectItem>
+                      ))}
+                      {drivers.data && drivers.data.items.length === 0 ? (
+                        <p className="px-2 py-1.5 text-sm text-muted-foreground">Aucun chauffeur actif.</p>
+                      ) : null}
+                    </SelectContent>
+                  </Select>
+                )}
+              </div>
+            ) : null}
+
             {needsRefusMotif ? (
               <div>
                 <Label htmlFor="refus_motif">Motif de refus</Label>
@@ -209,21 +258,53 @@ export function ActionsTransition({ vehicleId }: ActionsTransitionProps) {
             ) : null}
 
             {needsRdvAt ? (
-              <div>
-                <Label htmlFor="rdv_at">Date et heure du rendez-vous</Label>
-                <Input
-                  id="rdv_at"
-                  type="datetime-local"
-                  className="mt-1.5"
-                  min={rdvAtMin}
-                  value={rdvAt}
-                  aria-invalid={rdvAt.length > 0 && !rdvAtIsFuture ? true : undefined}
-                  onChange={(e) => handleRdvAtChange(e.target.value)}
-                />
-                {rdvAt.length > 0 && !rdvAtIsFuture ? (
-                  <p className="mt-1 text-sm text-destructive">Le rendez-vous doit être fixé dans le futur.</p>
-                ) : null}
-              </div>
+              <>
+                <div>
+                  <Label htmlFor="rdv_at">Date et heure du rendez-vous</Label>
+                  <Input
+                    id="rdv_at"
+                    type="datetime-local"
+                    className="mt-1.5"
+                    min={rdvAtMin}
+                    value={rdvAt}
+                    aria-invalid={rdvAt.length > 0 && !rdvAtIsFuture ? true : undefined}
+                    onChange={(e) => handleRdvAtChange(e.target.value)}
+                  />
+                  {rdvAt.length > 0 && !rdvAtIsFuture ? (
+                    <p className="mt-1 text-sm text-destructive">Le rendez-vous doit être fixé dans le futur.</p>
+                  ) : null}
+                </div>
+                <div>
+                  <Label htmlFor="rdv_adresse">Adresse du rendez-vous (optionnel)</Label>
+                  <Input
+                    id="rdv_adresse"
+                    className="mt-1.5"
+                    value={rdvAdresse}
+                    onChange={(e) => setRdvAdresse(e.target.value)}
+                  />
+                </div>
+                <div className="grid gap-4 sm:grid-cols-2">
+                  <div>
+                    <Label htmlFor="rdv_contact_nom">Contact vendeur (optionnel)</Label>
+                    <Input
+                      id="rdv_contact_nom"
+                      className="mt-1.5"
+                      value={rdvContactNom}
+                      onChange={(e) => setRdvContactNom(e.target.value)}
+                    />
+                  </div>
+                  <div>
+                    <Label htmlFor="rdv_contact_telephone">Téléphone du contact (optionnel)</Label>
+                    <Input
+                      id="rdv_contact_telephone"
+                      type="tel"
+                      className="mt-1.5"
+                      value={rdvContactTelephone}
+                      onChange={(e) => setRdvContactTelephone(e.target.value)}
+                    />
+                  </div>
+                </div>
+              </>
             ) : null}
 
             {pending?.requires_reason ? (
@@ -250,10 +331,15 @@ export function ActionsTransition({ vehicleId }: ActionsTransitionProps) {
           </div>
 
           <DialogFooter>
-            <Button type="button" variant="outline" onClick={() => setPending(null)}>
+            <Button type="button" variant="outline" className={buttonSizeClass} onClick={() => setPending(null)}>
               Annuler
             </Button>
-            <Button type="button" disabled={!canConfirm || applyTransition.isPending} onClick={handleConfirm}>
+            <Button
+              type="button"
+              disabled={!canConfirm || applyTransition.isPending}
+              className={buttonSizeClass}
+              onClick={handleConfirm}
+            >
               {applyTransition.isPending ? "Application…" : "Confirmer"}
             </Button>
           </DialogFooter>
