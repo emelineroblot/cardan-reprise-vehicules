@@ -33,9 +33,26 @@ Python · Next.js (PWA pour le terrain) · PostgreSQL · couche analytique sépa
 
 | Jalon | Contenu | État |
 |---|---|---|
-| J1 — Socle et saisie | Modèle de données, authentification, fiche d'achat, dédoublonnage | À venir |
-| J2 — Terrain | PWA chauffeur, checklist, photos guidées, brouillon hors ligne | À venir |
+| J1 — Socle et saisie | Modèle de données, authentification, fiche d'achat, dédoublonnage | ✅ Livré |
+| J2 — Terrain | PWA chauffeur, checklist, photos guidées, brouillon hors ligne | En cours |
 | J3 — Pilotage | Atelier, pipeline, couche analytique, tableau de bord | À venir |
+
+### Ce que J1 contient déjà
+
+- Fiche d'achat société + véhicule, avec enrichissement automatique par SIRET
+  (API publique, sans clé) et repli en saisie manuelle si le service est indisponible
+- Détection de doublons à deux niveaux — exacte sur le VIN et l'immatriculation,
+  approximative sur société, modèle et date — avec écran d'arbitrage comparant les
+  deux fiches côte à côte et détaillant les composantes du score
+- Cycle de vie du véhicule en 11 états, avec historique et journal d'audit
+- Liste de suivi filtrable à URL partageable
+
+682 tests backend contre PostgreSQL, 53 tests frontend, un parcours end-to-end
+Playwright, et un job d'intégration continue qui échoue si les types du frontend
+dérivent du contrat OpenAPI.
+
+Les décisions d'architecture et les pièges rencontrés sont documentés dans
+[`docs/wiki/`](docs/wiki/index.md).
 
 ---
 
