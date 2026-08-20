@@ -92,6 +92,42 @@ ENDPOINT_CASES: list[tuple[str, str, tuple[UserRole, ...], dict | None]] = [
         (UserRole.OPERATRICE, UserRole.ADMINISTRATEUR),
         VALID_DUPLICATE_REVIEW_BODY,
     ),
+    # J2 — brief : missions, inspections, notifications. Les endpoints multipart
+    # (`POST /vehicles/{id}/photos`) sont couverts séparément par `test_photos.py`, incompatibles
+    # avec le corps JSON générique de cette matrice.
+    ("GET", "/api/v1/users", (UserRole.ADMINISTRATEUR,), None),
+    ("GET", "/api/v1/missions", (UserRole.CHAUFFEUR, UserRole.ADMINISTRATEUR), None),
+    (
+        "GET",
+        f"/api/v1/missions/{uuid4()}",
+        (UserRole.CHAUFFEUR, UserRole.ADMINISTRATEUR),
+        None,
+    ),
+    (
+        "POST",
+        "/api/v1/inspections",
+        (UserRole.CHAUFFEUR,),
+        {"client_uuid": str(uuid4()), "vehicle_id": str(uuid4())},
+    ),
+    (
+        "GET",
+        f"/api/v1/inspections/{uuid4()}",
+        (UserRole.CHAUFFEUR, UserRole.ADMINISTRATEUR),
+        None,
+    ),
+    ("GET", "/api/v1/notifications", ALL_ROLES, None),
+    ("GET", "/api/v1/notifications/unread-count", ALL_ROLES, None),
+    ("GET", "/api/v1/notifications/push-public-key", ALL_ROLES, None),
+    (
+        "POST",
+        "/api/v1/notifications/push-subscriptions",
+        ALL_ROLES,
+        {"endpoint": f"https://push.example/{uuid4()}", "p256dh": "k", "auth": "a"},
+    ),
+    # Référentiel de checklist (revue orchestrateur J2) — donnée de référence sans caractère
+    # sensible, ouverte à tout rôle authentifié.
+    ("GET", "/api/v1/checklist-templates", ALL_ROLES, None),
+    ("GET", f"/api/v1/checklist-templates/{uuid4()}", ALL_ROLES, None),
 ]
 
 

@@ -14,7 +14,7 @@ import { DEMO_ACCOUNTS } from "@/lib/auth/demo-accounts";
  * et affichés — assumé, données fictives sur base réinitialisée chaque nuit.
  */
 export default function LoginPage() {
-  const { login, status } = useAuth();
+  const { login, status, user } = useAuth();
   const router = useRouter();
   const [pendingRole, setPendingRole] = useState<string | null>(null);
   const [error, setError] = useState<unknown>(null);
@@ -27,8 +27,9 @@ export default function LoginPage() {
 
   useEffect(() => {
     if (status === "authenticated") {
-      router.replace(nextPath || "/vehicules");
+      router.replace(nextPath || homeRouteForRole(user?.role ?? "operatrice"));
     }
+    // eslint-disable-next-line react-hooks/exhaustive-deps -- `user` suit `status`, pas besoin de redéclencher sur son identité.
   }, [status, nextPath, router]);
 
   const handleLogin = async (account: (typeof DEMO_ACCOUNTS)[number]) => {

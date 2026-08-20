@@ -20,6 +20,8 @@ from app.models.user import AppUser
 from app.models.vehicle import DuplicateReview, Vehicle
 from app.models.work_order import WorkOrder
 from app.schemas.vehicle import VehicleCreate, VehicleDraftIn
+from app.services import missions as missions_service
+from app.services import notifications as notifications_service
 from app.services.audit import write_vehicle_transition
 from app.services.dedup import VehicleDraft, score_candidate
 from app.services.normalize import normalize_immatriculation, normalize_modele, normalize_vin
@@ -288,6 +290,25 @@ def create_vehicle(db: Session, payload: VehicleCreate, user: AppUser) -> Vehicl
     return vehicle
 
 
+def _parse_iso_datetime_field(payload: dict, field: str) -> datetime | None:
+    """Parse `payload[field]` en `datetime` tz-aware, ou `None` si absent. Levée `ApiError
+    validation_error` (jamais un 500 brut) sur une valeur malformée — `payload` est un dict
+    client libre (revue § 🟡 J1). Partagée entre la garde d'automate (`build_transition_context`)
+    et les effets de bord (`transition_vehicle`) pour ne parser `rdv_at` qu'à un seul endroit."""
+    raw = payload.get(field)
+    if not raw:
+        return None
+    try:
+        value = datetime.fromisoformat(raw) if isinstance(raw, str) else raw
+    except (ValueError, TypeError) as exc:
+        raise ApiError(
+            "validation_error", f"payload.{field} invalide (date ISO-8601 attendue)."
+        ) from exc
+    if value.tzinfo is None:
+        value = value.replace(tzinfo=UTC)
+    return value
+
+
 def build_transition_context(
     db: Session, vehicle: Vehicle, user: AppUser, payload: dict
 ) -> TransitionContext:
@@ -307,20 +328,8 @@ def build_transition_context(
             driver and driver.role == UserRole.CHAUFFEUR.value and driver.is_active
         )
 
-    rdv_at_is_future = False
-    rdv_at_raw = payload.get("rdv_at")
-    if rdv_at_raw:
-        try:
-            rdv_at = (
-                datetime.fromisoformat(rdv_at_raw) if isinstance(rdv_at_raw, str) else rdv_at_raw
-            )
-        except (ValueError, TypeError) as exc:
-            raise ApiError(
-                "validation_error", "payload.rdv_at invalide (date ISO-8601 attendue)."
-            ) from exc
-        if rdv_at.tzinfo is None:
-            rdv_at = rdv_at.replace(tzinfo=UTC)
-        rdv_at_is_future = rdv_at > datetime.now(UTC)
+    rdv_at = _parse_iso_datetime_field(payload, "rdv_at")
+    rdv_at_is_future = rdv_at is not None and rdv_at > datetime.now(UTC)
 
     inspection_ok = (
         db.scalar(
@@ -388,9 +397,62 @@ def transition_vehicle(
             details={"allowed": exc.allowed},
         ) from exc
 
-    # Effets de bord minimaux, cohérents avec le payload transmis (plan.md § 5.3).
+    old_state = vehicle.state
+
+    # Effets de bord sur `mission` (plan.md § 5.3, colonne « Effet ») — la mission n'est jamais
+    # le déclencheur, seulement une conséquence de la transition véhicule déjà validée ci-dessus
+    # (« un seul point d'entrée », § 5.3). `pending_notification` est envoyée en push (best
+    # effort) *après* le commit principal, plus bas — un échec réseau ne doit jamais annuler une
+    # affectation déjà actée (brief J2, arbitrage « notifications »).
+    pending_notification = None
+
     if target_state == VehicleState.AFFECTE and payload.get("driver_id"):
-        vehicle.assigned_driver_id = UUID(payload["driver_id"])
+        # Couvre à la fois `A_PLANIFIER → AFFECTE` (première affectation) et `AFFECTE → AFFECTE`
+        # (réaffectation) : dans les deux cas, une éventuelle mission active existante est
+        # annulée avant d'en créer une nouvelle — sans quoi l'index unique partiel
+        # `uq_mission_vehicle_active` refuserait l'insertion (plan.md § 5.1).
+        driver_id = UUID(payload["driver_id"])
+        previous_mission = missions_service.get_active_mission(db, vehicle.id)
+        if previous_mission is not None:
+            missions_service.cancel_mission(db, previous_mission)
+        vehicle.assigned_driver_id = driver_id
+        new_mission = missions_service.create_mission(
+            db, vehicle, driver_id=driver_id, assigned_by_id=user.id
+        )
+        pending_notification = notifications_service.notify_mission_assigned(
+            db, driver_id=driver_id, vehicle=vehicle, mission=new_mission
+        )
+    elif target_state == VehicleState.RDV_PLANIFIE:
+        mission = missions_service.get_active_mission(db, vehicle.id)
+        if mission is not None:
+            missions_service.mark_rdv(
+                db,
+                mission,
+                rdv_at=_parse_iso_datetime_field(payload, "rdv_at"),
+                rdv_adresse=payload.get("rdv_adresse"),
+                rdv_contact_nom=payload.get("rdv_contact_nom"),
+                rdv_contact_telephone=payload.get("rdv_contact_telephone"),
+            )
+    elif target_state == VehicleState.CONTROLE_EN_COURS:
+        mission = missions_service.get_active_mission(db, vehicle.id)
+        if mission is not None:
+            missions_service.start_control(db, mission)
+    elif target_state in (
+        VehicleState.TRAVAUX_REQUIS,
+        VehicleState.ACHAT_VALIDE,
+        VehicleState.REFUSE,
+    ):
+        # Les trois sorties de `CONTROLE_EN_COURS` clôturent la mission (le passage sur place du
+        # chauffeur est terminé) ; si l'état atteint vient plutôt de `TRAVAUX_TERMINES` (J3), la
+        # mission est déjà `terminee` et `get_active_mission` renvoie `None` — no-op naturel.
+        mission = missions_service.get_active_mission(db, vehicle.id)
+        if mission is not None:
+            missions_service.complete_mission(db, mission)
+    elif target_state == VehicleState.ANNULE:
+        mission = missions_service.get_active_mission(db, vehicle.id)
+        if mission is not None:
+            missions_service.cancel_mission(db, mission)
+
     if payload.get("refus_motif"):
         vehicle.refus_motif = payload["refus_motif"]
     if payload.get("refus_commentaire"):
@@ -398,7 +460,6 @@ def transition_vehicle(
     if payload.get("prix_achat_negocie_cents") is not None:
         vehicle.prix_achat_negocie_cents = payload["prix_achat_negocie_cents"]
 
-    old_state = vehicle.state
     vehicle.state = target_state.value
     vehicle.state_changed_at = datetime.now(UTC)
     db.flush()
@@ -415,4 +476,8 @@ def transition_vehicle(
     )
     db.commit()
     db.refresh(vehicle)
+
+    if pending_notification is not None:
+        notifications_service.dispatch_pending_push(db, pending_notification)
+
     return vehicle

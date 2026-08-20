@@ -1,0 +1,57 @@
+<!doctype html>
+<html lang="fr">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title>Cardan — hors ligne</title>
+    <style>
+      body {
+        margin: 0;
+        min-height: 100vh;
+        display: flex;
+        flex-direction: column;
+        align-items: center;
+        justify-content: center;
+        gap: 0.75rem;
+        padding: 2rem;
+        text-align: center;
+        font-family:
+          system-ui,
+          -apple-system,
+          "Segoe UI",
+          Roboto,
+          sans-serif;
+        background: #0d2a4a;
+        color: #ffffff;
+      }
+      h1 {
+        font-size: 1.25rem;
+        margin: 0;
+      }
+      p {
+        max-width: 28rem;
+        color: rgba(255, 255, 255, 0.8);
+        margin: 0;
+      }
+      button {
+        margin-top: 1rem;
+        padding: 0.75rem 1.5rem;
+        font-size: 1rem;
+        border-radius: 0.5rem;
+        border: none;
+        background: #ffffff;
+        color: #0d2a4a;
+        font-weight: 600;
+      }
+    </style>
+  </head>
+  <body>
+    <h1>Pas de connexion pour l'instant</h1>
+    <p>
+      Cette page a besoin du réseau pour se charger la première fois. Si vous étiez déjà en plein
+      contrôle véhicule, rassurez-vous&nbsp;: vos réponses et vos photos sont enregistrées sur
+      l'appareil et partiront automatiquement dès que la connexion reviendra.
+    </p>
+    <button onclick="location.reload()">Réessayer</button>
+  </body>
+</html>

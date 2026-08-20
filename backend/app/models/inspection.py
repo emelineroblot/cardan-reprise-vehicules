@@ -16,7 +16,7 @@ from sqlalchemy import (
     UniqueConstraint,
     text,
 )
-from sqlalchemy.orm import Mapped, mapped_column
+from sqlalchemy.orm import Mapped, mapped_column, relationship
 
 from app.db.base import Base
 from app.models.enums import EtatGeneral, InspectionConclusion, check_in
@@ -39,8 +39,22 @@ class Inspection(Base):
     commentaire: Mapped[str | None] = mapped_column(Text, nullable=True)
     created_at: Mapped[datetime] = mapped_column(nullable=False, server_default=text("now()"))
 
+    # Réponses de checklist (formulaire de contrôle, brief J2) — lecture seule, chargée
+    # explicitement (`selectinload`) par les endpoints qui en ont besoin (même convention que
+    # `Vehicle.state_history`, jamais de lazy load implicite en série).
+    items: Mapped[list[InspectionItem]] = relationship(
+        order_by="InspectionItem.item_template_id", viewonly=True
+    )
+
     __table_args__ = (
         UniqueConstraint("client_uuid", name="uq_inspection_client_uuid"),
+        # Une seule inspection par mission — miroir en base de la règle applicative de
+        # `get_or_create_inspection` (`app/services/inspections.py`) : `RDV_PLANIFIE →
+        # CONTROLE_EN_COURS` est la seule transition qui crée une inspection, jamais rejouée
+        # pour une même mission (plan.md § 5.3). Contrainte totale, pas un index partiel : à la
+        # différence de `Photo` (angles répétables selon la phase), il n'existe aucun cas
+        # légitime de deux inspections pour la même mission, quel que soit son état.
+        UniqueConstraint("mission_id", name="uq_inspection_mission"),
         CheckConstraint(
             f"etat_general IS NULL OR etat_general IN ({check_in(*EtatGeneral)})",
             name="etat_general_valide",

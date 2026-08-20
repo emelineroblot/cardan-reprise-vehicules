@@ -37,6 +37,10 @@ export function useApplyTransition(vehicleId: string | undefined) {
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ["vehicles", vehicleId] });
       queryClient.invalidateQueries({ queryKey: ["vehicles"] });
+      // J2 : une transition véhicule a presque toujours un effet de bord sur `mission`
+      // (implementation.md § J2 Backend, tableau des effets) — la page mission ne doit
+      // jamais afficher un état de véhicule périmé après une action prise depuis elle.
+      queryClient.invalidateQueries({ queryKey: ["missions"] });
     },
   });
 }

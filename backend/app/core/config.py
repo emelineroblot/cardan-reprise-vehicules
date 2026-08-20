@@ -51,10 +51,27 @@ class Settings(BaseSettings):
     # Cron nocturne (Vercel envoie Authorization: Bearer $CRON_SECRET)
     cron_secret: str = _LOCAL_DEV_CRON_SECRET
 
-    # Stockage photos (Supabase Storage, région UE) — utilisé à partir de J2, colonnes posées en J1
+    # Stockage photos — colonnes posées en J1 (décision C), backend réel branché en J2.
+    # Arbitrage J2 : stockage **disque local simulé** pour l'instant (aucun compte tiers, aucune
+    # clé à manipuler) — voir `app/services/storage/`. `supabase_bucket` reste le nom de bucket
+    # logique utilisé dès maintenant (colonne `photo.storage_bucket`) : au déploiement, seule
+    # l'implémentation `PhotoStorage` change (`local.py` → un futur `supabase.py`), jamais son nom.
     supabase_url: str | None = None
     supabase_service_key: str | None = None
     supabase_bucket: str = "cardan-photos"
+    # Racine du stockage local (relative à `backend/` si non absolue) — jamais commitée
+    # (`backend/var/` est gitignoré).
+    local_storage_dir: str = "var/storage"
+
+    # Notifications web push (brief J2, arbitrage « notifications en base, push optionnel ») —
+    # la notification persistée en base est le chemin nominal et fonctionne sans aucune clé
+    # (voir `app/api/v1/notifications.py`). Le push réel ne s'active que si les deux clés VAPID
+    # sont présentes (`app/services/push.py::is_push_enabled`) ; son absence ne dégrade jamais
+    # le parcours — une démo devant un prospect ne doit jamais dépendre d'une autorisation
+    # navigateur.
+    vapid_public_key: str | None = None
+    vapid_private_key: str | None = None
+    vapid_subject: str = "mailto:demo@cardan.local"
 
     # Enrichissement société par SIRET (décision B)
     company_lookup_provider: Literal["recherche_entreprises", "insee", "disabled"] = (

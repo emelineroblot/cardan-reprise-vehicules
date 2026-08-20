@@ -2,12 +2,13 @@
 
 import Link from "next/link";
 import { usePathname, useRouter } from "next/navigation";
-import { LogOut, Menu, PlusCircle, Wrench, X } from "lucide-react";
+import { ClipboardList, LogOut, Menu, PlusCircle, Wrench, X } from "lucide-react";
 import { useState } from "react";
 import { useAuth } from "@/lib/auth/AuthProvider";
 import { hasRole } from "@/lib/auth/roles";
 import { ROLE_LABELS } from "@/lib/api/types";
 import { Button } from "@/components/ui/button";
+import { NotificationBell } from "@/components/domain/NotificationBell";
 import { cn } from "@/lib/utils";
 
 interface NavItem {
@@ -23,6 +24,12 @@ const NAV_ITEMS: NavItem[] = [
     label: "Suivi des véhicules",
     icon: Wrench,
     allowed: ["operatrice", "chauffeur", "administrateur", "atelier"],
+  },
+  {
+    href: "/missions",
+    label: "Mes missions",
+    icon: ClipboardList,
+    allowed: ["chauffeur", "administrateur"],
   },
   {
     href: "/fiches/nouvelle",
@@ -82,6 +89,7 @@ export function AppNav() {
               {user.full_name} · {ROLE_LABELS[user.role]}
             </span>
           ) : null}
+          <NotificationBell />
           <Button type="button" variant="outline" size="sm" onClick={handleLogout}>
             <LogOut className="size-4" aria-hidden="true" />
             Se déconnecter

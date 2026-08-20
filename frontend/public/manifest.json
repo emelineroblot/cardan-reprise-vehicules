@@ -1,0 +1,19 @@
+{
+  "name": "Cardan — module terrain",
+  "short_name": "Cardan",
+  "description": "Contrôle véhicule terrain : checklist, photos guidées, prise de rendez-vous — fonctionne hors ligne.",
+  "start_url": "/vehicules?pwa=1",
+  "scope": "/",
+  "display": "standalone",
+  "orientation": "portrait-primary",
+  "background_color": "#ffffff",
+  "theme_color": "#0d2a4a",
+  "lang": "fr",
+  "dir": "ltr",
+  "icons": [
+    { "src": "/icons/icon-192.png", "sizes": "192x192", "type": "image/png", "purpose": "any" },
+    { "src": "/icons/icon-512.png", "sizes": "512x512", "type": "image/png", "purpose": "any" },
+    { "src": "/icons/icon-maskable-192.png", "sizes": "192x192", "type": "image/png", "purpose": "maskable" },
+    { "src": "/icons/icon-maskable-512.png", "sizes": "512x512", "type": "image/png", "purpose": "maskable" }
+  ]
+}

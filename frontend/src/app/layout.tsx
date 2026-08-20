@@ -1,6 +1,7 @@
-import type { Metadata } from "next";
+import type { Metadata, Viewport } from "next";
 import { Geist, Geist_Mono } from "next/font/google";
 import { Providers } from "@/app/providers";
+import { ServiceWorkerRegister } from "@/components/domain/ServiceWorkerRegister";
 import "./globals.css";
 
 const geistSans = Geist({
@@ -17,6 +18,27 @@ export const metadata: Metadata = {
   title: "Cardan — gestion des reprises de véhicules",
   description:
     "Démo de portfolio : traçabilité de l'achat de véhicules d'occasion, de la proposition à la validation.",
+  manifest: "/manifest.json",
+  appleWebApp: {
+    capable: true,
+    statusBarStyle: "black-translucent",
+    title: "Cardan",
+  },
+  icons: {
+    icon: [
+      { url: "/icons/icon-192.png", sizes: "192x192", type: "image/png" },
+      { url: "/icons/icon-512.png", sizes: "512x512", type: "image/png" },
+    ],
+    apple: [{ url: "/icons/apple-touch-icon.png", sizes: "180x180", type: "image/png" }],
+  },
+};
+
+export const viewport: Viewport = {
+  themeColor: "#0d2a4a",
+  width: "device-width",
+  initialScale: 1,
+  // La PWA terrain doit rester utilisable une seule main, gants inclus : pas de
+  // `maximumScale: 1` qui empêcherait un zoom d'appoint sur un petit écran en plein soleil.
 };
 
 export default function RootLayout({ children }: LayoutProps<"/">) {
@@ -33,6 +55,7 @@ export default function RootLayout({ children }: LayoutProps<"/">) {
           Aller au contenu principal
         </a>
         <Providers>{children}</Providers>
+        <ServiceWorkerRegister />
       </body>
     </html>
   );

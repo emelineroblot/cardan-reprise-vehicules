@@ -3,13 +3,17 @@
 from __future__ import annotations
 
 from datetime import datetime
+from typing import TYPE_CHECKING
 from uuid import UUID
 
 from sqlalchemy import CheckConstraint, ForeignKey, Index, String, Text, text
-from sqlalchemy.orm import Mapped, mapped_column
+from sqlalchemy.orm import Mapped, mapped_column, relationship
 
 from app.db.base import Base
 from app.models.enums import MissionState, check_in
+
+if TYPE_CHECKING:
+    from app.models.vehicle import Vehicle
 
 
 class Mission(Base):
@@ -28,6 +32,10 @@ class Mission(Base):
     accepted_at: Mapped[datetime | None] = mapped_column(nullable=True)
     completed_at: Mapped[datetime | None] = mapped_column(nullable=True)
     notes: Mapped[str | None] = mapped_column(Text, nullable=True)
+
+    # Chargé via `joinedload` par `app/api/v1/missions.py` — la liste « mes missions » du
+    # chauffeur (brief J2) a besoin de la référence/marque/modèle sans requête supplémentaire.
+    vehicle: Mapped[Vehicle] = relationship(viewonly=True)
 
     __table_args__ = (
         CheckConstraint(f"state IN ({check_in(*MissionState)})", name="state_valide"),

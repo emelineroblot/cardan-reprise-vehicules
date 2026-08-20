@@ -289,6 +289,344 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/api/v1/users": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** List Users */
+        get: operations["list_users_api_v1_users_get"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/missions": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** List Missions */
+        get: operations["list_missions_api_v1_missions_get"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/missions/{mission_id}": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** Get Mission */
+        get: operations["get_mission_api_v1_missions__mission_id__get"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/inspections": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /** Create Inspection */
+        post: operations["create_inspection_api_v1_inspections_post"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/inspections/{inspection_id}": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** Get Inspection */
+        get: operations["get_inspection_api_v1_inspections__inspection_id__get"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        /** Patch Inspection */
+        patch: operations["patch_inspection_api_v1_inspections__inspection_id__patch"];
+        trace?: never;
+    };
+    "/api/v1/inspections/{inspection_id}/items": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        /** Put Inspection Items */
+        put: operations["put_inspection_items_api_v1_inspections__inspection_id__items_put"];
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/inspections/{inspection_id}/submit": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /** Submit */
+        post: operations["submit_api_v1_inspections__inspection_id__submit_post"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/checklist-templates": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * List Checklist Templates
+         * @description Sans les items (volumétrie dérisoire — quelques modèles) : le détail se récupère par
+         *     `GET /checklist-templates/{id}`, typiquement à partir du `template_id` renvoyé par
+         *     `POST /inspections` / `GET /inspections/{id}`.
+         */
+        get: operations["list_checklist_templates_api_v1_checklist_templates_get"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/checklist-templates/{template_id}": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** Get Checklist Template */
+        get: operations["get_checklist_template_api_v1_checklist_templates__template_id__get"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/vehicles/{vehicle_id}/photos": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** List Vehicle Photos */
+        get: operations["list_vehicle_photos_api_v1_vehicles__vehicle_id__photos_get"];
+        put?: never;
+        /** Upload Photo */
+        post: operations["upload_photo_api_v1_vehicles__vehicle_id__photos_post"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/vehicles/{vehicle_id}/photos/required-angles": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * Get Required Angles
+         * @description Ce que le front doit encore capturer pour `inspection_id` — la liste des 12 angles
+         *     imposés est portée par le backend (`REQUIRED_PHOTO_ANGLES`), jamais recopiée côté front.
+         */
+        get: operations["get_required_angles_api_v1_vehicles__vehicle_id__photos_required_angles_get"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/photos/file/{bucket}/{key}": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** Get Photo File */
+        get: operations["get_photo_file_api_v1_photos_file__bucket___key__get"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/notifications": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** List Notifications */
+        get: operations["list_notifications_api_v1_notifications_get"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/notifications/unread-count": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** Unread Count */
+        get: operations["unread_count_api_v1_notifications_unread_count_get"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/notifications/{notification_id}/read": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /** Mark Read */
+        post: operations["mark_read_api_v1_notifications__notification_id__read_post"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/notifications/read-all": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /** Mark All Read */
+        post: operations["mark_all_read_api_v1_notifications_read_all_post"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/notifications/push-public-key": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** Push Public Key */
+        get: operations["push_public_key_api_v1_notifications_push_public_key_get"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/notifications/push-subscriptions": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /**
+         * Create Push Subscription
+         * @description Upsert par `endpoint` (unique en base) — un abonnement déjà connu est réattaché à
+         *     l'utilisateur courant plutôt que dupliqué (ex. reconnexion sur le même appareil/navigateur).
+         */
+        post: operations["create_push_subscription_api_v1_notifications_push_subscriptions_post"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/notifications/push-subscriptions/{subscription_id}": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        post?: never;
+        /** Delete Push Subscription */
+        delete: operations["delete_push_subscription_api_v1_notifications_push_subscriptions__subscription_id__delete"];
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
 }
 export type webhooks = Record<string, never>;
 export interface components {
@@ -302,6 +640,105 @@ export interface components {
         AllowedTransitionsResponse: {
             /** Allowed */
             allowed: components["schemas"]["TransitionOptionRead"][];
+        };
+        /** Body_upload_photo_api_v1_vehicles__vehicle_id__photos_post */
+        Body_upload_photo_api_v1_vehicles__vehicle_id__photos_post: {
+            /**
+             * File
+             * Format: binary
+             */
+            file: string;
+            /**
+             * Client Uuid
+             * Format: uuid
+             */
+            client_uuid: string;
+            /** Angle */
+            angle: string;
+            /** Phase */
+            phase: string;
+            /** Captured At */
+            captured_at: string;
+            /** Checksum Sha256 */
+            checksum_sha256: string;
+            /** Width */
+            width: number;
+            /** Height */
+            height: number;
+            /** Inspection Id */
+            inspection_id?: string | null;
+        };
+        /**
+         * ChecklistItemTemplateRead
+         * @description Un item du formulaire de contrôle. `ordre` = ordre d'affichage ; `categorie` = son
+         *     regroupement (`exterieur|interieur|mecanique|documents|securite`, plan.md § 5.1) — le front
+         *     groupe côté client en triant par `ordre` puis en regroupant par `categorie`, sans dupliquer
+         *     ce référentiel.
+         */
+        ChecklistItemTemplateRead: {
+            /**
+             * Id
+             * Format: uuid
+             */
+            id: string;
+            /**
+             * Template Id
+             * Format: uuid
+             */
+            template_id: string;
+            /** Code */
+            code: string;
+            /** Libelle */
+            libelle: string;
+            /** Categorie */
+            categorie: string;
+            /** Ordre */
+            ordre: number;
+            /** Is Required */
+            is_required: boolean;
+            /** Response Type */
+            response_type: string;
+        };
+        /**
+         * ChecklistTemplateBrief
+         * @description `GET /checklist-templates` — sans les items, pour lister les modèles disponibles.
+         */
+        ChecklistTemplateBrief: {
+            /**
+             * Id
+             * Format: uuid
+             */
+            id: string;
+            /** Code */
+            code: string;
+            /** Libelle */
+            libelle: string;
+            /** Version */
+            version: number;
+            /** Is Active */
+            is_active: boolean;
+        };
+        /**
+         * ChecklistTemplateRead
+         * @description `GET /checklist-templates/{id}` — items triés par `ordre` (garanti par la relation ORM,
+         *     `app/models/checklist.py`).
+         */
+        ChecklistTemplateRead: {
+            /**
+             * Id
+             * Format: uuid
+             */
+            id: string;
+            /** Code */
+            code: string;
+            /** Libelle */
+            libelle: string;
+            /** Version */
+            version: number;
+            /** Is Active */
+            is_active: boolean;
+            /** Items */
+            items?: components["schemas"]["ChecklistItemTemplateRead"][];
         };
         /**
          * CompanyBrief
@@ -591,6 +1028,158 @@ export interface components {
             /** Detail */
             detail?: components["schemas"]["ValidationError"][];
         };
+        /**
+         * InspectionCreate
+         * @description Idempotent par `client_uuid`, généré côté client (décision C : le brouillon doit pouvoir
+         *     naître hors ligne). `vehicle_id` doit être en `CONTROLE_EN_COURS` avec une mission active
+         *     affectée à l'appelant.
+         */
+        InspectionCreate: {
+            /**
+             * Client Uuid
+             * Format: uuid
+             */
+            client_uuid: string;
+            /**
+             * Vehicle Id
+             * Format: uuid
+             */
+            vehicle_id: string;
+            /** Template Id */
+            template_id?: string | null;
+        };
+        /** InspectionItemRead */
+        InspectionItemRead: {
+            /**
+             * Id
+             * Format: uuid
+             */
+            id: string;
+            /**
+             * Item Template Id
+             * Format: uuid
+             */
+            item_template_id: string;
+            /** Valeur Bool */
+            valeur_bool: boolean | null;
+            /** Valeur Note */
+            valeur_note: number | null;
+            /** Valeur Texte */
+            valeur_texte: string | null;
+            /** Valeur Num */
+            valeur_num: number | null;
+            /** Commentaire */
+            commentaire: string | null;
+            /** Photo Id */
+            photo_id: string | null;
+        };
+        /** InspectionItemUpsert */
+        InspectionItemUpsert: {
+            /**
+             * Item Template Id
+             * Format: uuid
+             */
+            item_template_id: string;
+            /** Valeur Bool */
+            valeur_bool?: boolean | null;
+            /** Valeur Note */
+            valeur_note?: number | null;
+            /** Valeur Texte */
+            valeur_texte?: string | null;
+            /** Valeur Num */
+            valeur_num?: number | null;
+            /** Commentaire */
+            commentaire?: string | null;
+            /** Photo Id */
+            photo_id?: string | null;
+        };
+        /** InspectionItemsUpsertRequest */
+        InspectionItemsUpsertRequest: {
+            /** Items */
+            items: components["schemas"]["InspectionItemUpsert"][];
+        };
+        /**
+         * InspectionPatch
+         * @description Champs de brouillon modifiables tant que `submitted_at` est nul.
+         */
+        InspectionPatch: {
+            /** Kilometrage Releve */
+            kilometrage_releve?: number | null;
+            /** Etat General */
+            etat_general?: string | null;
+            /** Commentaire */
+            commentaire?: string | null;
+        };
+        /** InspectionRead */
+        InspectionRead: {
+            /**
+             * Id
+             * Format: uuid
+             */
+            id: string;
+            /**
+             * Vehicle Id
+             * Format: uuid
+             */
+            vehicle_id: string;
+            /**
+             * Mission Id
+             * Format: uuid
+             */
+            mission_id: string;
+            /**
+             * Driver Id
+             * Format: uuid
+             */
+            driver_id: string;
+            /**
+             * Template Id
+             * Format: uuid
+             */
+            template_id: string;
+            /**
+             * Client Uuid
+             * Format: uuid
+             */
+            client_uuid: string;
+            /**
+             * Started At
+             * Format: date-time
+             */
+            started_at: string;
+            /** Submitted At */
+            submitted_at: string | null;
+            /** Kilometrage Releve */
+            kilometrage_releve: number | null;
+            /** Etat General */
+            etat_general: string | null;
+            /** Conclusion */
+            conclusion: string | null;
+            /** Commentaire */
+            commentaire: string | null;
+            /**
+             * Created At
+             * Format: date-time
+             */
+            created_at: string;
+            /** Items */
+            items?: components["schemas"]["InspectionItemRead"][];
+        };
+        /**
+         * InspectionSubmitRequest
+         * @description Corps optionnel de `POST /inspections/{id}/submit` — permet de poser les champs de
+         *     synthèse en même temps que la soumission plutôt que d'exiger un `PATCH` préalable.
+         */
+        InspectionSubmitRequest: {
+            /** Kilometrage Releve */
+            kilometrage_releve?: number | null;
+            /** Etat General */
+            etat_general?: string | null;
+            /** Conclusion */
+            conclusion?: string | null;
+            /** Commentaire */
+            commentaire?: string | null;
+        };
         /** IntakeBatchCreate */
         IntakeBatchCreate: {
             /**
@@ -652,10 +1241,141 @@ export interface components {
             /** Telephone */
             telephone?: string | null;
         };
+        /** MissionRead */
+        MissionRead: {
+            /**
+             * Id
+             * Format: uuid
+             */
+            id: string;
+            /**
+             * Vehicle Id
+             * Format: uuid
+             */
+            vehicle_id: string;
+            /**
+             * Driver Id
+             * Format: uuid
+             */
+            driver_id: string;
+            /** State */
+            state: string;
+            /** Rdv At */
+            rdv_at: string | null;
+            /** Rdv Adresse */
+            rdv_adresse: string | null;
+            /** Rdv Contact Nom */
+            rdv_contact_nom: string | null;
+            /** Rdv Contact Telephone */
+            rdv_contact_telephone: string | null;
+            /**
+             * Assigned By Id
+             * Format: uuid
+             */
+            assigned_by_id: string;
+            /**
+             * Assigned At
+             * Format: date-time
+             */
+            assigned_at: string;
+            /** Accepted At */
+            accepted_at: string | null;
+            /** Completed At */
+            completed_at: string | null;
+            /** Notes */
+            notes: string | null;
+            vehicle: components["schemas"]["MissionVehicleBrief"];
+        };
+        /**
+         * MissionVehicleBrief
+         * @description De quoi afficher la mission dans la liste du chauffeur sans recharger la fiche complète.
+         */
+        MissionVehicleBrief: {
+            /**
+             * Id
+             * Format: uuid
+             */
+            id: string;
+            /** Reference */
+            reference: string;
+            /** Marque */
+            marque: string;
+            /** Modele */
+            modele: string;
+            /** Version */
+            version: string | null;
+            /** State */
+            state: string;
+            /**
+             * Company Id
+             * Format: uuid
+             */
+            company_id: string;
+        };
+        /** NotificationRead */
+        NotificationRead: {
+            /**
+             * Id
+             * Format: uuid
+             */
+            id: string;
+            /** Type */
+            type: string;
+            /** Titre */
+            titre: string;
+            /** Corps */
+            corps: string;
+            /** Payload */
+            payload: {
+                [key: string]: unknown;
+            } | null;
+            /** Read At */
+            read_at: string | null;
+            /** Sent At */
+            sent_at: string | null;
+            /**
+             * Created At
+             * Format: date-time
+             */
+            created_at: string;
+        };
         /** Page[CompanyRead] */
         Page_CompanyRead_: {
             /** Items */
             items: components["schemas"]["CompanyRead"][];
+            /** Total */
+            total: number;
+            /** Limit */
+            limit: number;
+            /** Offset */
+            offset: number;
+        };
+        /** Page[MissionRead] */
+        Page_MissionRead_: {
+            /** Items */
+            items: components["schemas"]["MissionRead"][];
+            /** Total */
+            total: number;
+            /** Limit */
+            limit: number;
+            /** Offset */
+            offset: number;
+        };
+        /** Page[NotificationRead] */
+        Page_NotificationRead_: {
+            /** Items */
+            items: components["schemas"]["NotificationRead"][];
+            /** Total */
+            total: number;
+            /** Limit */
+            limit: number;
+            /** Offset */
+            offset: number;
+        };
+        /** Page[UserBrief] */
+        Page_UserBrief_: {
+            /** Items */
+            items: components["schemas"]["UserBrief"][];
             /** Total */
             total: number;
             /** Limit */
@@ -673,6 +1393,115 @@ export interface components {
             limit: number;
             /** Offset */
             offset: number;
+        };
+        /**
+         * PhotoRead
+         * @description `url` est calculée à la volée par le backend de stockage actif
+         *     (`app/services/storage/service.py`) — jamais stockée en base.
+         */
+        PhotoRead: {
+            /**
+             * Id
+             * Format: uuid
+             */
+            id: string;
+            /**
+             * Vehicle Id
+             * Format: uuid
+             */
+            vehicle_id: string;
+            /** Inspection Id */
+            inspection_id: string | null;
+            /** Work Order Id */
+            work_order_id: string | null;
+            /** Angle */
+            angle: string;
+            /** Phase */
+            phase: string;
+            /** Content Type */
+            content_type: string;
+            /** Byte Size */
+            byte_size: number;
+            /** Width */
+            width: number;
+            /** Height */
+            height: number;
+            /**
+             * Client Uuid
+             * Format: uuid
+             */
+            client_uuid: string;
+            /** Upload State */
+            upload_state: string;
+            /** Is Placeholder */
+            is_placeholder: boolean;
+            /**
+             * Captured At
+             * Format: date-time
+             */
+            captured_at: string;
+            /** Uploaded At */
+            uploaded_at: string | null;
+            /** Url */
+            url: string;
+        };
+        /**
+         * PushPublicKeyResponse
+         * @description `enabled=False` quand les clés VAPID sont absentes — le front ne doit alors jamais
+         *     proposer l'abonnement push (arbitrage : son absence ne dégrade jamais le parcours).
+         */
+        PushPublicKeyResponse: {
+            /** Enabled */
+            enabled: boolean;
+            /** Public Key */
+            public_key: string | null;
+        };
+        /**
+         * PushSubscriptionCreate
+         * @description Corps de `pushManager.subscribe()` côté navigateur — enregistré même si le push n'est
+         *     pas activé côté serveur (VAPID absent) : l'abonnement est prêt pour le jour où il le sera.
+         */
+        PushSubscriptionCreate: {
+            /** Endpoint */
+            endpoint: string;
+            /** P256Dh */
+            p256dh: string;
+            /** Auth */
+            auth: string;
+            /** User Agent */
+            user_agent?: string | null;
+        };
+        /** PushSubscriptionRead */
+        PushSubscriptionRead: {
+            /**
+             * Id
+             * Format: uuid
+             */
+            id: string;
+            /** Endpoint */
+            endpoint: string;
+            /** Is Active */
+            is_active: boolean;
+            /**
+             * Created At
+             * Format: date-time
+             */
+            created_at: string;
+            /** Last Used At */
+            last_used_at: string | null;
+        };
+        /**
+         * RequiredAnglesResponse
+         * @description Parcours d'angles imposé (brief J2) — ce que le front doit encore capturer pour un
+         *     `inspection_id` donné.
+         */
+        RequiredAnglesResponse: {
+            /** Required Angles */
+            required_angles: string[];
+            /** Captured Angles */
+            captured_angles: string[];
+            /** Missing Angles */
+            missing_angles: string[];
         };
         /**
          * TransitionOptionRead
@@ -699,6 +1528,29 @@ export interface components {
             payload?: {
                 [key: string]: unknown;
             } | null;
+        };
+        /** UnreadCountResponse */
+        UnreadCountResponse: {
+            /** Count */
+            count: number;
+        };
+        /** UserBrief */
+        UserBrief: {
+            /**
+             * Id
+             * Format: uuid
+             */
+            id: string;
+            /** Email */
+            email: string;
+            /** Full Name */
+            full_name: string;
+            /** Role */
+            role: string;
+            /** Telephone */
+            telephone: string | null;
+            /** Is Active */
+            is_active: boolean;
         };
         /** ValidationError */
         ValidationError: {
@@ -1632,6 +2484,657 @@ export interface operations {
                         [key: string]: unknown;
                     };
                 };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    list_users_api_v1_users_get: {
+        parameters: {
+            query?: {
+                role?: string | null;
+                is_active?: boolean | null;
+                q?: string | null;
+                limit?: number;
+                offset?: number;
+            };
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["Page_UserBrief_"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    list_missions_api_v1_missions_get: {
+        parameters: {
+            query?: {
+                state?: string | null;
+                driver_id?: string | null;
+                limit?: number;
+                offset?: number;
+            };
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["Page_MissionRead_"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    get_mission_api_v1_missions__mission_id__get: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                mission_id: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["MissionRead"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    create_inspection_api_v1_inspections_post: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["InspectionCreate"];
+            };
+        };
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["InspectionRead"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    get_inspection_api_v1_inspections__inspection_id__get: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                inspection_id: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["InspectionRead"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    patch_inspection_api_v1_inspections__inspection_id__patch: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                inspection_id: string;
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["InspectionPatch"];
+            };
+        };
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["InspectionRead"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    put_inspection_items_api_v1_inspections__inspection_id__items_put: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                inspection_id: string;
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["InspectionItemsUpsertRequest"];
+            };
+        };
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["InspectionRead"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    submit_api_v1_inspections__inspection_id__submit_post: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                inspection_id: string;
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["InspectionSubmitRequest"];
+            };
+        };
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["InspectionRead"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    list_checklist_templates_api_v1_checklist_templates_get: {
+        parameters: {
+            query?: {
+                is_active?: boolean;
+            };
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ChecklistTemplateBrief"][];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    get_checklist_template_api_v1_checklist_templates__template_id__get: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                template_id: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ChecklistTemplateRead"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    list_vehicle_photos_api_v1_vehicles__vehicle_id__photos_get: {
+        parameters: {
+            query?: {
+                inspection_id?: string | null;
+                phase?: string | null;
+            };
+            header?: never;
+            path: {
+                vehicle_id: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["PhotoRead"][];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    upload_photo_api_v1_vehicles__vehicle_id__photos_post: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                vehicle_id: string;
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "multipart/form-data": components["schemas"]["Body_upload_photo_api_v1_vehicles__vehicle_id__photos_post"];
+            };
+        };
+        responses: {
+            /** @description Successful Response */
+            201: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["PhotoRead"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    get_required_angles_api_v1_vehicles__vehicle_id__photos_required_angles_get: {
+        parameters: {
+            query: {
+                inspection_id: string;
+            };
+            header?: never;
+            path: {
+                vehicle_id: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["RequiredAnglesResponse"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    get_photo_file_api_v1_photos_file__bucket___key__get: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                bucket: string;
+                key: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": unknown;
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    list_notifications_api_v1_notifications_get: {
+        parameters: {
+            query?: {
+                unread_only?: boolean;
+                limit?: number;
+                offset?: number;
+            };
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["Page_NotificationRead_"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    unread_count_api_v1_notifications_unread_count_get: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["UnreadCountResponse"];
+                };
+            };
+        };
+    };
+    mark_read_api_v1_notifications__notification_id__read_post: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                notification_id: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["NotificationRead"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    mark_all_read_api_v1_notifications_read_all_post: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["UnreadCountResponse"];
+                };
+            };
+        };
+    };
+    push_public_key_api_v1_notifications_push_public_key_get: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["PushPublicKeyResponse"];
+                };
+            };
+        };
+    };
+    create_push_subscription_api_v1_notifications_push_subscriptions_post: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["PushSubscriptionCreate"];
+            };
+        };
+        responses: {
+            /** @description Successful Response */
+            201: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["PushSubscriptionRead"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    delete_push_subscription_api_v1_notifications_push_subscriptions__subscription_id__delete: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                subscription_id: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            204: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
             };
             /** @description Validation Error */
             422: {

@@ -32,6 +32,10 @@ ErrorCode = Literal[
     "siret_lookup_unavailable",
     "conflict",
     "internal_error",
+    # J2 — parcours terrain chauffeur (missions, inspections, photos).
+    "inspection_not_allowed",
+    "inspection_incomplete",
+    "photo_quota_exceeded",
 ]
 
 _STATUS_BY_CODE: dict[str, int] = {
@@ -47,6 +51,9 @@ _STATUS_BY_CODE: dict[str, int] = {
     "siret_lookup_unavailable": status.HTTP_503_SERVICE_UNAVAILABLE,
     "conflict": status.HTTP_409_CONFLICT,
     "internal_error": status.HTTP_500_INTERNAL_SERVER_ERROR,
+    "inspection_not_allowed": status.HTTP_409_CONFLICT,
+    "inspection_incomplete": status.HTTP_409_CONFLICT,
+    "photo_quota_exceeded": status.HTTP_409_CONFLICT,
 }
 
 # Filet de sécurité pour toute écriture qui n'a pas rejoué le contrôle applicatif en amont
@@ -78,6 +85,33 @@ _CONSTRAINT_TO_ERROR: dict[str, tuple[ErrorCode, str, dict[str, str]]] = {
     "uq_duplicate_review_paire": (
         "conflict",
         "Un arbitrage existe déjà pour cette paire de véhicules.",
+        {},
+    ),
+    # J2 — filet pour les collisions concurrentes (le contrôle applicatif reste la première
+    # ligne de défense dans chaque service, voir `app/services/{photos,inspections}.py`).
+    "uq_photo_inspection_angle_controle": (
+        "conflict",
+        "Cet angle a déjà été photographié pour ce contrôle.",
+        {},
+    ),
+    "uq_photo_client_uuid": (
+        "conflict",
+        "Cette photo a déjà été envoyée (rejeu réseau).",
+        {},
+    ),
+    "uq_inspection_client_uuid": (
+        "conflict",
+        "Ce contrôle a déjà été initié (rejeu réseau).",
+        {},
+    ),
+    "uq_mission_vehicle_active": (
+        "conflict",
+        "Une mission active existe déjà pour ce véhicule.",
+        {},
+    ),
+    "uq_push_subscription_endpoint": (
+        "conflict",
+        "Cet abonnement push est déjà enregistré.",
         {},
     ),
 }

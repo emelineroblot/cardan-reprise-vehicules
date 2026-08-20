@@ -47,6 +47,7 @@ pnpm-debug.log*
 *.db
 /media/
 /uploads/
+backend/var/
 
 # --- Éditeurs & OS ---
 .vscode/
