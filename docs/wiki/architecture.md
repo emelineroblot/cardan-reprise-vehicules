@@ -315,7 +315,11 @@ push : seeds et migrations ne peuvent pas diverger sans que la CI vire au rouge.
   reset nocturne les réécrit en totalité. C'est ce volume, écrit séquentiellement vers un stockage
   réseau, qui a motivé la mesure du budget de temps du reset au déploiement ; revenir au pool
   statique décrit ici reste une option non tranchée pour réduire ce volume — voir
-  [deploiement.md](deploiement.md) § 6, option A.
+  [deploiement.md](deploiement.md) § 6, option A. **La visibilité « bucket privé » ci-dessus a,
+  elle aussi, été revue au déploiement (2026-08-21)** : le bucket réel est `public: true`,
+  décision assumée pour cette démonstration (photos synthétiques, détruites chaque nuit — voir
+  [deploiement.md](deploiement.md) § 3 pour le raisonnement complet et la condition qui rendrait
+  un bucket privé de nouveau obligatoire).
 - **Marge : la formule est figée dès J1, appliquée en J3.** Deux règles non négociables — la marge
   **peut être négative** (aucun `GREATEST(0, …)`), et une valeur de revente absente donne
   `marge_cents = NULL` avec `has_marge = false`, l'UI affichant « — » et jamais « 0 € ». Confondre

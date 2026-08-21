@@ -31,7 +31,7 @@ de données et le stockage des photos sont **tous les deux** hébergés par le m
 | `SUPABASE_SERVICE_KEY` | **Project Settings → API → Project API keys**, ligne **`service_role`** | **Jamais** la clé `anon`/publique : c'est la `service_role` qui contourne les policies RLS du bucket, nécessaire puisque c'est le *backend* qui écrit pour le compte de tous les utilisateurs, jamais le navigateur. Cette clé a tous les droits sur le projet — ne jamais l'exposer côté frontend/navigateur. |
 | `SUPABASE_BUCKET` | Nom choisi à la création du bucket (§ 3) | `cardan-photos` par défaut (`app/core/config.py`), à garder tel quel sauf besoin explicite de le changer. |
 | `DATABASE_URL` | **Project Settings → Database → Connection string**, onglet **Transaction pooler** | Port **6543**. C'est la chaîne que l'API utilise à chaque requête (`app/db/session.py`, `pool_size=1`) — un pooler en mode transaction, comme PgBouncer. |
-| `DATABASE_URL_DIRECT` | **Project Settings → Database → Connection string**, onglet **Direct connection** | Port **5432**. Réservée à Alembic (`alembic upgrade head`) et à `REFRESH MATERIALIZED VIEW ... CONCURRENTLY` (`app/analytics/runner.py`) — un pooler en mode transaction ne supporte ni les migrations de schéma ni `CONCURRENTLY`. |
+| `DATABASE_URL_DIRECT` | **Project Settings → Database → Connection string**, onglet **Session pooler** | Port **5432**. Réservée à Alembic (`alembic upgrade head`) et à `REFRESH MATERIALIZED VIEW ... CONCURRENTLY` (`app/analytics/runner.py`) — un pooler en mode *transaction* ne supporte ni les migrations de schéma ni `CONCURRENTLY`, mais le mode *session* si (une connexion dédiée pour toute la session). ⚠️ **Ne pas prendre l'onglet « Direct connection »** : `db.<ref>.supabase.co` ne publie **qu'un enregistrement AAAA (IPv6)** — vérifié sur ce projet — et échoue avec `failed to resolve host` depuis tout réseau sans IPv6. |
 
 Les deux chaînes de connexion partagent le même mot de passe (§ 1) mais un hôte/port différents —
 Supabase les affiche déjà complètes, avec le mot de passe à coller soi-même (`[YOUR-PASSWORD]`
@@ -45,17 +45,34 @@ postgresql+psycopg://postgres.<ref>:<mot-de-passe>@aws-0-<region>.pooler.supabas
 postgresql+psycopg://postgres.<ref>:<mot-de-passe>@aws-0-<region>.pooler.supabase.com:5432/postgres
 ```
 
+⚠️ Deux pièges d'échappement rencontrés sur ce projet, tous deux avec des messages d'erreur
+trompeurs :
+
+- **Un caractère spécial dans le mot de passe doit être encodé en URL** (`#` → `%23`), sinon la
+  chaîne est tronquée silencieusement à cet endroit.
+- **Alembic passe cette URL par `configparser`, qui interprète `%` comme une interpolation** : il
+  faut alors **doubler** le signe (`%%23`) dans la variable lue par `alembic upgrade head`, sinon
+  `ValueError: invalid interpolation syntax`. Le plus simple reste de choisir un mot de passe de
+  base **sans caractère spécial**.
+
 ## 3. Créer le bucket de stockage — **à la main, le code ne le fait jamais**
 
 **Storage → New bucket** dans le tableau de bord :
 - Nom : la même valeur que `SUPABASE_BUCKET` (`cardan-photos` par défaut).
-- **Visibilité : Private.** Le bucket ne doit **pas** être public — la lecture d'une photo passe
-  systématiquement par la route backend authentifiée `GET /api/v1/photos/file/{bucket}/{key}`
-  (scoping par véhicule, `scope_vehicles`), jamais par une URL Supabase directe
-  (`SupabaseStorage.read_url` renvoie volontairement la même route que le disque local — voir
-  [architecture.md](architecture.md) § Stockage des photos). Un bucket public rendrait cette
-  route contournable par quiconque devine ou obtient un chemin d'objet, même si aucune URL
-  publique n'est aujourd'hui affichée par l'application.
+- **Visibilité : Public sur la démonstration publique — décision assumée, documentée ici.**
+
+  L'application, elle, ne sert jamais une photo autrement que par la route backend authentifiée
+  `GET /api/v1/photos/file/{bucket}/{key}` (scoping par véhicule, `scope_vehicles`) :
+  `SupabaseStorage.read_url` renvoie volontairement la même route que le disque local — voir
+  [architecture.md](architecture.md) § Stockage des photos. Le cloisonnement applicatif est donc
+  réel et identique quelle que soit la visibilité du bucket.
+
+  **Ce qu'un bucket public change, et qu'il faut assumer en connaissance de cause** : la route
+  backend devient contournable par quiconque devine ou obtient un chemin d'objet. Sur cette
+  démonstration, les photos sont des images synthétiques générées par le seed et détruites chaque
+  nuit — la conséquence réelle est nulle. Sur un déploiement portant de vraies photos de
+  véhicules, elle ne le serait pas : **un bucket privé redevient alors obligatoire**, sans aucune
+  modification de code (seule la visibilité du bucket change).
 - Aucune policy RLS supplémentaire n'est nécessaire : le backend utilise la clé `service_role`,
   qui contourne RLS par construction.
 
@@ -63,11 +80,8 @@ postgresql+psycopg://postgres.<ref>:<mot-de-passe>@aws-0-<region>.pooler.supabas
 des buckets (créer/lister/supprimer un bucket) — seulement les opérations sur les objets d'un
 bucket déjà existant. Le créer est donc un préalable strictement manuel.
 
-⚠️ **Constat sur le projet réel utilisé pendant ce développement** : le bucket `cardan-photos`
-y existe déjà et est actuellement configuré **`public: true`** — à corriger en **Private** dans
-**Storage → cardan-photos → Configuration** avant le premier déploiement, pour correspondre à la
-décision ci-dessus. Non corrigé par ce développement (action sur le compte Supabase, hors du
-mandat de préparation du code).
+ℹ️ **État du projet réel** : le bucket `cardan-photos` existe et est configuré `public: true`,
+conformément à la décision ci-dessus. Aucune action requise avant le déploiement.
 
 ## 4. Variables d'environnement à déclarer sur Vercel
 
@@ -102,7 +116,7 @@ excuse pour ne pas poser `ENVIRONMENT` explicitement.
 
 ## 5. Ordre des opérations pour le premier déploiement
 
-1. Créer le projet Supabase (§ 1), récupérer les valeurs (§ 2), créer le bucket privé (§ 3).
+1. Créer le projet Supabase (§ 1), récupérer les valeurs (§ 2), créer le bucket (§ 3).
 2. Déployer le projet Vercel **backend** avec les variables d'environnement posées (§ 4) — le
    premier déploiement peut échouer/tourner sans base peuplée, c'est attendu à ce stade.
 3. Jouer les migrations sur la base Supabase, **depuis un poste avec `DATABASE_URL_DIRECT`
@@ -246,9 +260,8 @@ suffirait à lui seul à menacer un plafond de 60 s).
 ## 7. Ce qui reste strictement manuel (le code ne peut pas le couvrir)
 
 - Création du compte et du projet Supabase, choix de la région.
-- Création (déjà faite sur le projet utilisé pendant ce développement, à vérifier sur tout
-  nouveau projet) **et passage en Private** du bucket de stockage (§ 3) — vérifié absent de toute
-  route de code, `SupabaseStorage` suppose le bucket déjà existant et n'agit jamais sur sa
+- Création du bucket de stockage (§ 3) — déjà faite sur le projet réel, à refaire sur tout
+  nouveau projet : `SupabaseStorage` suppose le bucket déjà existant et n'agit jamais sur sa
   visibilité.
 - Récupération et saisie des variables d'environnement sur les deux projets Vercel (§ 4).
 - Premier `alembic upgrade head` contre la base Supabase (§ 5, étape 3) — jamais automatique,

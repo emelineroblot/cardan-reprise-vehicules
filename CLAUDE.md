@@ -42,9 +42,11 @@ main
   possible au rechargement de l'écran de contrôle après soumission).
 - **Frontend** : Next.js — module terrain en PWA installable (caméra, stockage local, web push)
 - **Base de données** : Supabase Postgres managé — connexion **Transaction pooler** (Supavisor,
-  port 6543) pour l'API, connexion **directe** (port 5432) pour les migrations Alembic et
+  port 6543) pour l'API, **Session pooler** (port 5432) pour les migrations Alembic et
   `REFRESH MATERIALIZED VIEW ... CONCURRENTLY` (`DATABASE_URL`/`DATABASE_URL_DIRECT`, voir
-  `docs/wiki/deploiement.md`).
+  `docs/wiki/deploiement.md`). La « Direct connection » (`db.<ref>.supabase.co`) que la
+  documentation Supabase met en avant n'est **pas** utilisable ici : elle ne publie qu'un
+  enregistrement AAAA (IPv6) et échoue depuis tout réseau sans IPv6.
 - **Stockage photos** : abstraction `PhotoStorage` (`backend/app/services/storage/`), backend
   choisi par **configuration**, jamais par une variable dédiée — `Settings.
   supabase_storage_configured` (`app/core/config.py`) décide : `SupabaseStorage`
