@@ -12,7 +12,7 @@ from typing import Any
 from uuid import UUID
 
 from fastapi import APIRouter, Depends
-from sqlalchemy import select
+from sqlalchemy import func, select
 from sqlalchemy.orm import Session, joinedload, selectinload
 
 from app.api.deps import get_current_user, require_roles
@@ -27,6 +27,8 @@ from app.schemas.vehicle import (
     AllowedTransitionsResponse,
     DuplicateCandidate,
     DuplicateCheckResponse,
+    PipelineCountsResponse,
+    PipelineStateCount,
     TransitionOptionRead,
     TransitionRequest,
     VehicleCreate,
@@ -56,6 +58,27 @@ _WRITE_ROLES = ("operatrice", "administrateur")
 DEDUP_RELEVANT_FIELDS = frozenset(
     {"marque", "modele", "version", "energie", "kilometrage", "date_proposition"}
 )
+
+# Cloisonnement des données financières (revue J3, 🔴 « le cloisonnement des données financières
+# n'existe pas côté serveur ») — mêmes rôles que `canSeeFinances` côté front
+# (`vehicules/[id]/page.tsx`), pour rester cohérent avec l'écran qu'ils alimentent tous les deux.
+_FINANCE_VISIBLE_ROLES = frozenset({"operatrice", "administrateur"})
+
+
+def _redact_finances(payload: VehicleRead | VehicleListItem, role: str) -> None:
+    """Met les trois champs financiers à `None` pour tout rôle hors `_FINANCE_VISIBLE_ROLES` —
+    appliquée en Python, après construction du schéma de réponse, jamais laissée à l'affichage
+    front (« masquer dans l'interface ne protège rien », commentaire déjà présent dans
+    `vehicle_scope.py`). Un chauffeur ou un atelier reçoit `null`, jamais la valeur réelle : le
+    contrat MÊME (`prix_achat_negocie_cents`/`valeur_revente_estimee_cents` déjà nullable pour
+    « pas de valeur saisie », `frais_transport_cents` rendu nullable pour ce motif) absorbe la
+    rédaction sans ambiguïté observable pour ces rôles, qui n'ont de toute façon jamais accès à
+    la valeur réelle pour distinguer les deux cas."""
+    if role in _FINANCE_VISIBLE_ROLES:
+        return
+    payload.prix_achat_negocie_cents = None
+    payload.valeur_revente_estimee_cents = None
+    payload.frais_transport_cents = None
 
 
 def _jsonable(value: Any) -> Any:
@@ -149,11 +172,41 @@ def list_vehicles(
     stmt = stmt.order_by(column.desc() if sort.startswith("-") else column.asc())
 
     items, total = paginate(db, stmt, params)
+    read_items = [VehicleListItem.model_validate(i) for i in items]
+    for item in read_items:
+        _redact_finances(item, user.role)
     return Page[VehicleListItem](
-        items=[VehicleListItem.model_validate(i) for i in items],
+        items=read_items,
         total=total,
         limit=params.limit,
         offset=params.offset,
+    )
+
+
+@router.get("/pipeline-counts", response_model=PipelineCountsResponse)
+def pipeline_counts(
+    db: Session = Depends(get_db),
+    user: AppUser = Depends(require_roles("administrateur")),
+) -> PipelineCountsResponse:
+    """Kanban administrateur (brief J3) — nombre de véhicules par état, tous les 11 états
+    représentés même à zéro (une colonne vide reste une colonne). **Doit être déclaré avant**
+    `GET /vehicles/{vehicle_id}` dans ce routeur : sans quoi FastAPI tenterait de parser
+    `"pipeline-counts"` comme un UUID de véhicule.
+
+    Lecture strictement opérationnelle (`vehicle` en direct, jamais un mart) : contrairement au
+    dashboard analytique, un Kanban est une vue **interactive** dont l'état doit refléter la
+    dernière transition, pas la dernière fenêtre de rafraîchissement (plan.md § 3.7 : la règle
+    « le dashboard lit les marts » vise les indicateurs de pilotage, pas cet écran opérationnel).
+    """
+    rows = db.execute(
+        scope_vehicles(select(Vehicle.state, func.count()).group_by(Vehicle.state), user)
+    ).all()
+    counts_by_state: dict[str, int] = {row[0]: row[1] for row in rows}
+    return PipelineCountsResponse(
+        counts=[
+            PipelineStateCount(state=s.value, count=counts_by_state.get(s.value, 0))
+            for s in VehicleState
+        ]
     )
 
 
@@ -172,8 +225,11 @@ def _get_scoped_vehicle(db: Session, vehicle_id: UUID, user: AppUser) -> Vehicle
 @router.get("/{vehicle_id}", response_model=VehicleRead)
 def get_vehicle(
     vehicle_id: UUID, db: Session = Depends(get_db), user: AppUser = Depends(get_current_user)
-) -> Vehicle:
-    return _get_scoped_vehicle(db, vehicle_id, user)
+) -> VehicleRead:
+    vehicle = _get_scoped_vehicle(db, vehicle_id, user)
+    read_vehicle = VehicleRead.model_validate(vehicle)
+    _redact_finances(read_vehicle, user.role)
+    return read_vehicle
 
 
 @router.patch("/{vehicle_id}", response_model=VehicleRead)
@@ -301,6 +357,11 @@ def post_transition(
     payload: TransitionRequest,
     db: Session = Depends(get_db),
     user: AppUser = Depends(get_current_user),
-) -> Vehicle:
+) -> VehicleRead:
     vehicle = _get_scoped_vehicle(db, vehicle_id, user)
-    return transition_vehicle(db, vehicle, payload.to_state, user, payload.reason, payload.payload)
+    updated = transition_vehicle(
+        db, vehicle, payload.to_state, user, payload.reason, payload.payload
+    )
+    read_vehicle = VehicleRead.model_validate(updated)
+    _redact_finances(read_vehicle, user.role)
+    return read_vehicle

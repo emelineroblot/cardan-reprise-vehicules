@@ -25,8 +25,16 @@ def test_load_missing_key_raises_file_not_found(tmp_path) -> None:
 def test_read_url_is_a_backend_route_not_a_filesystem_path(tmp_path) -> None:
     storage = LocalDiskStorage(tmp_path)
     url = storage.read_url(bucket="cardan-photos", key="runtime/veh1/photo1.jpg")
-    assert url == "/api/v1/photos/file/cardan-photos/runtime/veh1/photo1.jpg"
     assert str(tmp_path) not in url
+
+
+def test_read_url_is_prefixed_for_direct_browser_consumption(tmp_path) -> None:
+    """Le navigateur n'appelle jamais le backend en direct (rewrite Next `/api/backend`,
+    docs/wiki/pieges-projet.md § « Module terrain / PWA (J2) ») : `url` doit être utilisable
+    telle quelle dans un `<img src>`, sans que le front n'ait à en reconstruire le préfixe."""
+    storage = LocalDiskStorage(tmp_path)
+    url = storage.read_url(bucket="cardan-photos", key="runtime/veh1/photo1.jpg")
+    assert url == "/api/backend/v1/photos/file/cardan-photos/runtime/veh1/photo1.jpg"
 
 
 def test_delete_prefix_removes_only_matching_keys(tmp_path) -> None:

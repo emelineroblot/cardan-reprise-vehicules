@@ -8,6 +8,7 @@ une affectation déjà actée (arbitrage « web push optionnel »).
 
 from __future__ import annotations
 
+import logging
 from datetime import UTC, datetime
 from typing import Any
 from uuid import UUID, uuid4
@@ -19,6 +20,8 @@ from app.models.mission import Mission
 from app.models.notification import Notification, PushSubscription
 from app.models.vehicle import Vehicle
 from app.services.push import PushTarget, is_push_enabled, send_web_push
+
+logger = logging.getLogger(__name__)
 
 
 def create_notification(
@@ -104,4 +107,16 @@ def dispatch_pending_push(db: Session, notification: Notification) -> None:
 
     if sent:
         notification.sent_at = datetime.now(UTC)
-    db.commit()
+    try:
+        db.commit()
+    except Exception:  # noqa: BLE001 — best-effort (review-j2-finale.md § 🟡 n°6) : la
+        # transition véhicule est déjà committée par l'appelant (`vehicles.py::transition_vehicle`)
+        # avant que cette fonction ne soit invoquée. Un échec ici (ex. connexion coupée par la
+        # mise en veille Neon pendant l'appel réseau push) ne doit jamais renvoyer un 500 au
+        # client sur une action déjà réussie — seul le marquage `sent_at`/`is_active` est perdu,
+        # sans conséquence fonctionnelle (retenté au prochain envoi).
+        logger.exception(
+            "Échec de la mise à jour post-push (sent_at/is_active) — sans conséquence sur la "
+            "transition déjà committée."
+        )
+        db.rollback()

@@ -416,3 +416,142 @@ export const PHOTO_ANGLE_LABELS: Record<PhotoAngle, string> = {
   compteur: "Compteur (kilométrage)",
   defaut: "Défaut constaté",
 };
+
+// --- J3 : atelier, coûts, Kanban, analytique ------------------------------
+
+export type WorkOrderType = "carrosserie" | "mecanique" | "nettoyage" | "pneumatiques" | "autre";
+export type WorkOrderState = "demande" | "en_cours" | "termine" | "annule";
+export type WorkOrderLineCategorie = "piece" | "main_oeuvre" | "sous_traitance" | "consommable";
+export type VehicleCostType =
+  | "transport"
+  | "carburant"
+  | "administratif"
+  | "remise_en_etat_externe"
+  | "autre";
+
+export type WorkOrderLine = Omit<components["schemas"]["WorkOrderLineRead"], "categorie"> & {
+  categorie: WorkOrderLineCategorie;
+};
+
+export type WorkOrderLineCreate = Omit<components["schemas"]["WorkOrderLineCreate"], "categorie"> & {
+  categorie: WorkOrderLineCategorie;
+};
+
+/**
+ * `lines` porté par `WorkOrderRead` — `?` côté OpenAPI (valeur par défaut Pydantic non émise
+ * en JSON Schema, même remarque que `state_history`/`DuplicateCheckResult` ailleurs dans ce
+ * fichier) mais toujours présent à l'exécution (`GET /vehicles/{id}/work-orders` et
+ * `GET /work-orders/{id}` le chargent explicitement, implementation.md § J3 Backend).
+ */
+export type WorkOrder = Omit<
+  components["schemas"]["WorkOrderRead"],
+  "type" | "state" | "lines"
+> & {
+  type: WorkOrderType;
+  state: WorkOrderState;
+  lines: WorkOrderLine[];
+};
+
+export type WorkOrderStateUpdate = Omit<components["schemas"]["WorkOrderStateUpdate"], "to_state"> & {
+  to_state: Exclude<WorkOrderState, "demande">;
+};
+
+export type VehicleCost = Omit<components["schemas"]["VehicleCostRead"], "type"> & {
+  type: VehicleCostType;
+};
+
+export type VehicleCostCreate = Omit<components["schemas"]["VehicleCostCreate"], "type"> & {
+  type: VehicleCostType;
+};
+
+export type PipelineStateCount = Omit<components["schemas"]["PipelineStateCount"], "state"> & {
+  state: VehicleState;
+};
+
+/** `GET /vehicles/pipeline-counts` — toujours les 11 états, même à `count: 0` (contrat backend). */
+export type PipelineCounts = {
+  counts: PipelineStateCount[];
+};
+
+/**
+ * `GET /analytics/marge` — cœur de la démonstration (brief J3). `marge_cents`/`marge_pct` sont
+ * `null` quand `has_marge` est `false` — JAMAIS `0` (règle non négociable, ne jamais appliquer
+ * `Math.max(0, …)` côté front). `marge_cents` peut être négatif : affiché tel quel.
+ */
+export type VehiculeMarge = Omit<components["schemas"]["VehiculeMargeRead"], "state"> & {
+  state: VehicleState;
+};
+
+/** `GET /analytics/cycle-temps` — chaque délai est `null` (jamais `0`) tant que l'étape n'a pas été atteinte. */
+export type CycleTemps = Omit<components["schemas"]["CycleTempsRead"], "state"> & {
+  state: VehicleState;
+};
+
+/** `GET /analytics/pipeline-etat` — vue analytique (valeur immobilisée), distincte du Kanban opérationnel. */
+export type PipelineEtat = Omit<components["schemas"]["PipelineEtatRead"], "state"> & {
+  state: VehicleState;
+};
+
+/** `GET /analytics/refus` — `ANNULE` exclu du numérateur ET du dénominateur ; `taux_refus` est `null` sans donnée. */
+export type Refus = Omit<components["schemas"]["RefusRead"], "type_flotte"> & {
+  type_flotte: TypeFlotte;
+};
+
+/** `GET /analytics/travaux` — coût moyen/écart calculés uniquement sur les ordres clos, `null` sinon. */
+export type Travaux = Omit<components["schemas"]["TravauxRead"], "type"> & {
+  type: WorkOrderType;
+};
+
+/** `GET /analytics/kpi-global` — un objet unique (pas de liste), les tuiles du dashboard. */
+export type KpiGlobal = components["schemas"]["KpiGlobalRead"];
+
+export interface AnalyticsRefreshResult {
+  mart_name: string;
+  status: "succes" | "echec" | (string & {});
+  duration_ms: number;
+}
+
+export interface AnalyticsRefreshResponse {
+  results: AnalyticsRefreshResult[];
+}
+
+export interface AnalyticsMartStatus {
+  mart_name: string;
+  refreshed_at: string;
+  status: "succes" | "echec" | (string & {});
+  duration_ms: number;
+}
+
+export interface AnalyticsStatusResponse {
+  marts: AnalyticsMartStatus[];
+}
+
+export const WORK_ORDER_TYPE_LABELS: Record<WorkOrderType, string> = {
+  carrosserie: "Carrosserie",
+  mecanique: "Mécanique",
+  nettoyage: "Nettoyage",
+  pneumatiques: "Pneumatiques",
+  autre: "Autre",
+};
+
+export const WORK_ORDER_STATE_LABELS: Record<WorkOrderState, string> = {
+  demande: "Demandé",
+  en_cours: "En cours",
+  termine: "Terminé",
+  annule: "Annulé",
+};
+
+export const WORK_ORDER_LINE_CATEGORIE_LABELS: Record<WorkOrderLineCategorie, string> = {
+  piece: "Pièce",
+  main_oeuvre: "Main d'œuvre",
+  sous_traitance: "Sous-traitance",
+  consommable: "Consommable",
+};
+
+export const VEHICLE_COST_TYPE_LABELS: Record<VehicleCostType, string> = {
+  transport: "Transport",
+  carburant: "Carburant",
+  administratif: "Administratif",
+  remise_en_etat_externe: "Remise en état externe",
+  autre: "Autre",
+};

@@ -26,6 +26,15 @@ def _truncate_all(engine) -> None:
         conn.execute(text(f"TRUNCATE {table_list} RESTART IDENTITY CASCADE"))
 
 
+def _null_safe_sort_key(row: tuple) -> tuple:
+    """De nombreuses colonnes de mart sont volontairement `NULL` (jamais 0 — § règle non
+    négociable de la marge/du délai/du taux de refus), ce qu'un tri par tuple Python ne sait pas
+    comparer nativement (`TypeError` entre `None` et `int`). Chaque élément devient `(is_none,
+    valeur_ou_None)` : les `None` se regroupent entre eux sans jamais être comparés à une vraie
+    valeur."""
+    return tuple((item is None, item) for item in row)
+
+
 def test_two_consecutive_resets_produce_identical_counters(engine) -> None:
     try:
         first = run_demo_reset()
@@ -39,7 +48,183 @@ def test_two_consecutive_resets_produce_identical_counters(engine) -> None:
             "checklist_items": 14,
             "companies": 12,
             "vehicles": 90,
+            # J3 — atelier (work_order/work_order_line) et coûts hors atelier (vehicle_cost),
+            # comptes déterministes (même graine, mêmes règles de génération) : la valeur exacte
+            # n'est pas ce qui compte (elle bougerait au moindre ajustement de proportion dans
+            # `app/seed/demo.py`), c'est que `first == second` ci-dessus le prouve déjà — cette
+            # assertion documente en plus la valeur actuelle en clair.
+            "work_orders": 28,
+            "work_order_lines": 32,
+            "vehicle_costs": 34,
+            # Correctif post-J3 (tests-j3.md § 3, gap J2) : le seed peuple désormais le module
+            # terrain (mission/inspection/photo/notification) — mêmes considérations que
+            # ci-dessus, la valeur exacte importe moins que `first == second`, documentée ici en
+            # clair. `photos` couvre les deux familles (angles de contrôle + avant/après travaux).
+            "missions": 70,
+            "inspections": 48,
+            "photos": 583,
+            "notifications": 70,
         }
+    finally:
+        _truncate_all(engine)
+
+
+def test_two_consecutive_resets_produce_identical_dashboard_figures(engine) -> None:
+    """La démo publique est réinitialisée chaque nuit (cron Vercel) — si les chiffres du
+    tableau de bord bougeaient d'une nuit à l'autre, l'étude de cas deviendrait fausse. Ne
+    vérifie pas seulement les compteurs de lignes (`test_two_consecutive_resets_produce_
+    identical_counters` ci-dessus) mais le **contenu numérique** des marts eux-mêmes :
+    `run_demo_reset()` appelle `analytics build`+`refresh` (autocommit, § 4 décision F) à
+    chaque passage, donc les marts existent déjà et sont comparables directement en base sans
+    passer par un endpoint HTTP.
+    """
+    try:
+        first = run_demo_reset()
+        assert first["status"] == "succes"
+        with engine.connect() as conn:
+            first_kpi = dict(
+                conn.execute(text("SELECT * FROM analytics.mart_kpi_global")).mappings().one()
+            )
+            # `vehicle_id`/`reference` changent à chaque reset (UUID/séquence régénérés) : seules
+            # les valeurs numériques comparent le contenu réel du dashboard, triées pour ne pas
+            # dépendre d'un ordre de ligne accidentellement stable.
+            first_marges = sorted(
+                (
+                    (row.marge_cents, row.marge_pct, row.has_marge)
+                    for row in conn.execute(
+                        text(
+                            "SELECT marge_cents, marge_pct, has_marge "
+                            "FROM analytics.mart_vehicule_marge"
+                        )
+                    )
+                ),
+                key=_null_safe_sort_key,
+            )
+            first_refus = sorted(
+                (
+                    tuple(row)
+                    for row in conn.execute(
+                        text(
+                            "SELECT mois, type_flotte, nb_proposes, nb_refuses, taux_refus "
+                            "FROM analytics.mart_refus"
+                        )
+                    )
+                ),
+                key=_null_safe_sort_key,
+            )
+            first_travaux = sorted(
+                (
+                    tuple(row)
+                    for row in conn.execute(
+                        text(
+                            "SELECT mois, type, volume, nb_clos, cout_moyen_reel_cents, "
+                            "ecart_estime_reel_cents FROM analytics.mart_travaux"
+                        )
+                    )
+                ),
+                key=_null_safe_sort_key,
+            )
+            first_cycle = sorted(
+                (
+                    (
+                        row.delai_saisie_affectation_heures,
+                        row.delai_affectation_controle_heures,
+                        row.delai_controle_decision_heures,
+                        row.delai_total_heures,
+                    )
+                    for row in conn.execute(
+                        text(
+                            "SELECT delai_saisie_affectation_heures, "
+                            "delai_affectation_controle_heures, "
+                            "delai_controle_decision_heures, delai_total_heures "
+                            "FROM analytics.mart_cycle_temps"
+                        )
+                    )
+                ),
+                key=_null_safe_sort_key,
+            )
+
+        second = run_demo_reset()
+        assert second["status"] == "succes"
+        with engine.connect() as conn:
+            second_kpi = dict(
+                conn.execute(text("SELECT * FROM analytics.mart_kpi_global")).mappings().one()
+            )
+            second_marges = sorted(
+                (
+                    (row.marge_cents, row.marge_pct, row.has_marge)
+                    for row in conn.execute(
+                        text(
+                            "SELECT marge_cents, marge_pct, has_marge "
+                            "FROM analytics.mart_vehicule_marge"
+                        )
+                    )
+                ),
+                key=_null_safe_sort_key,
+            )
+            second_refus = sorted(
+                (
+                    tuple(row)
+                    for row in conn.execute(
+                        text(
+                            "SELECT mois, type_flotte, nb_proposes, nb_refuses, taux_refus "
+                            "FROM analytics.mart_refus"
+                        )
+                    )
+                ),
+                key=_null_safe_sort_key,
+            )
+            second_travaux = sorted(
+                (
+                    tuple(row)
+                    for row in conn.execute(
+                        text(
+                            "SELECT mois, type, volume, nb_clos, cout_moyen_reel_cents, "
+                            "ecart_estime_reel_cents FROM analytics.mart_travaux"
+                        )
+                    )
+                ),
+                key=_null_safe_sort_key,
+            )
+            second_cycle = sorted(
+                (
+                    (
+                        row.delai_saisie_affectation_heures,
+                        row.delai_affectation_controle_heures,
+                        row.delai_controle_decision_heures,
+                        row.delai_total_heures,
+                    )
+                    for row in conn.execute(
+                        text(
+                            "SELECT delai_saisie_affectation_heures, "
+                            "delai_affectation_controle_heures, "
+                            "delai_controle_decision_heures, delai_total_heures "
+                            "FROM analytics.mart_cycle_temps"
+                        )
+                    )
+                ),
+                key=_null_safe_sort_key,
+            )
+
+        # `snapshot_key` mis à part (constante), le reste des tuiles KPI doit être identique.
+        first_kpi.pop("snapshot_key", None)
+        second_kpi.pop("snapshot_key", None)
+        assert first_kpi == second_kpi, (
+            "les tuiles du tableau de bord (mart_kpi_global) diffèrent entre deux demo-reset "
+            "consécutifs — la démo publique, réinitialisée chaque nuit, afficherait des chiffres "
+            "différents d'un jour à l'autre"
+        )
+        assert first_marges == second_marges
+        assert first_refus == second_refus
+        assert first_travaux == second_travaux
+        assert first_cycle == second_cycle
+        # Rappel non négociable, revérifié à chaque reset : au moins une marge négative, au
+        # moins une marge NULL (has_marge=false) — sans quoi une régression du seed pourrait
+        # rendre ce test vert par absence de cas, pas par exactitude.
+        assert any(
+            marge_cents is not None and marge_cents < 0 for marge_cents, _pct, _has in first_marges
+        )
+        assert any(has_marge is False for _cents, _pct, has_marge in first_marges)
     finally:
         _truncate_all(engine)
 

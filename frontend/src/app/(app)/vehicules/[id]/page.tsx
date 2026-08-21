@@ -9,13 +9,25 @@ import { ErrorState } from "@/components/ui/error-state";
 import { Button } from "@/components/ui/button";
 import { HistoriqueEtats } from "@/components/domain/HistoriqueEtats";
 import { ActionsTransition } from "@/components/domain/ActionsTransition";
+import { WorkOrdersSection } from "@/components/domain/WorkOrdersSection";
+import { VehicleCostsPanel } from "@/components/domain/VehicleCostsPanel";
 import { useVehicle } from "@/lib/api/hooks/useVehicle";
+import { useAuth } from "@/lib/auth/AuthProvider";
+import { hasRole } from "@/lib/auth/roles";
 import { formatDate, formatDateTime, formatImmatriculation, formatMoneyCents } from "@/lib/format";
 import { BOITE_LABELS, ENERGIE_LABELS, REFUS_MOTIF_LABELS } from "@/lib/api/types";
 
 export default function VehiculeDetailPage({ params }: { params: Promise<{ id: string }> }) {
   const { id } = use(params);
   const { data: vehicle, isLoading, error, refetch } = useVehicle(id);
+  const { user } = useAuth();
+  const canManageWorkOrders = hasRole(user, ["atelier", "administrateur"]);
+  const canSeeFinances = hasRole(user, ["operatrice", "administrateur"]);
+  // Revue J3 § 🟠 « Le chauffeur et l'atelier voient les ingrédients de la marge » : distinct de
+  // `canSeeFinances` (prix négocié / valeur de revente — plus sensible, réservé
+  // opératrice/administrateur). Les coûts d'atelier réels restent visibles à l'atelier lui-même
+  // (qui les saisit) et à l'opératrice (suivi du dossier), jamais au chauffeur.
+  const canSeeWorkOrders = hasRole(user, ["atelier", "operatrice", "administrateur"]);
 
   return (
     <div className="flex flex-col gap-6">
@@ -80,19 +92,34 @@ export default function VehiculeDetailPage({ params }: { params: Promise<{ id: s
                 ) : null}
               </section>
 
-              <section aria-labelledby="finances-heading" className="rounded-lg border border-border p-4">
-                <h2 id="finances-heading" className="mb-3 font-medium text-foreground">
-                  Éléments financiers
-                </h2>
-                <dl className="grid grid-cols-2 gap-x-4 gap-y-2 text-sm sm:grid-cols-3">
-                  <Field label="Prix négocié" value={formatMoneyCents(vehicle.prix_achat_negocie_cents)} />
-                  <Field
-                    label="Valeur de revente estimée"
-                    value={formatMoneyCents(vehicle.valeur_revente_estimee_cents)}
-                  />
-                  <Field label="Frais de transport" value={formatMoneyCents(vehicle.frais_transport_cents)} />
-                </dl>
-              </section>
+              {canSeeFinances ? (
+                <section aria-labelledby="finances-heading" className="rounded-lg border border-border p-4">
+                  <h2 id="finances-heading" className="mb-3 font-medium text-foreground">
+                    Éléments financiers
+                  </h2>
+                  <dl className="grid grid-cols-2 gap-x-4 gap-y-2 text-sm sm:grid-cols-3">
+                    <Field label="Prix négocié" value={formatMoneyCents(vehicle.prix_achat_negocie_cents)} />
+                    <Field
+                      label="Valeur de revente estimée"
+                      value={formatMoneyCents(vehicle.valeur_revente_estimee_cents)}
+                    />
+                    <Field label="Frais de transport" value={formatMoneyCents(vehicle.frais_transport_cents)} />
+                  </dl>
+                  <div className="mt-4 border-t border-border pt-4">
+                    <h3 className="mb-2 text-sm font-medium text-foreground">Coûts hors atelier</h3>
+                    <VehicleCostsPanel vehicleId={vehicle.id} canManage={hasRole(user, ["administrateur"])} />
+                  </div>
+                </section>
+              ) : null}
+
+              {canSeeWorkOrders ? (
+                <section aria-labelledby="atelier-heading" className="rounded-lg border border-border p-4">
+                  <h2 id="atelier-heading" className="mb-3 font-medium text-foreground">
+                    Atelier — ordres de travaux
+                  </h2>
+                  <WorkOrdersSection vehicleId={vehicle.id} canManage={canManageWorkOrders} />
+                </section>
+              ) : null}
 
               {vehicle.state === "REFUSE" ? (
                 <section className="rounded-lg border border-rose-200 bg-rose-50 p-4 dark:bg-rose-950/30">

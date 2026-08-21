@@ -17,7 +17,7 @@ from sqlalchemy import (
     Text,
     text,
 )
-from sqlalchemy.orm import Mapped, mapped_column
+from sqlalchemy.orm import Mapped, mapped_column, relationship
 
 from app.db.base import Base
 from app.models.enums import WorkOrderLineCategorie, WorkOrderState, WorkOrderType, check_in
@@ -38,6 +38,12 @@ class WorkOrder(Base):
     started_at: Mapped[datetime | None] = mapped_column(nullable=True)
     completed_at: Mapped[datetime | None] = mapped_column(nullable=True)
     commentaire_atelier: Mapped[str | None] = mapped_column(Text, nullable=True)
+
+    # Lignes de coût réel (J3) — chargées explicitement par `selectinload` là où c'est nécessaire
+    # (`app/api/v1/work_orders.py`), jamais par défaut sur la liste des work_order d'un véhicule.
+    lines: Mapped[list[WorkOrderLine]] = relationship(
+        order_by="WorkOrderLine.created_at", viewonly=True
+    )
 
     __table_args__ = (
         CheckConstraint(f"type IN ({check_in(*WorkOrderType)})", name="type_valide"),

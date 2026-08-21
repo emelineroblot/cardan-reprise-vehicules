@@ -29,6 +29,13 @@ ainsi que leurs `inspection_item`/`photo` orphelins (aucun `ON DELETE CASCADE` s
 cf. `0001_socle`). Les octets déjà écrits sur disque pour les photos supprimées deviennent
 orphelins : sans conséquence pratique, même traitement que les écritures avortées documenté
 dans `app/services/photos.py` (purgés au reset nocturne, `runtime/` entièrement vidé).
+
+Correction post-revue (review-j2-finale.md § 🟡 n°1) : `inspection_item` est supprimée **avant**
+`photo`, pas après. `inspection_item.photo_id → photo.id` ne porte aucun `ON DELETE` (`0001_socle`) :
+supprimer `photo` en premier aurait fait échouer l'`upgrade` en violation de clé étrangère au
+moindre `inspection_item` référençant une photo perdante. Latent sur la base de dev actuelle (le
+front n'a jamais écrit `photo_id`, seul écrivain : `app/services/inspections.py`), mais l'ordre
+correct ne doit rien à cette absence de fait.
 """
 
 from typing import Sequence, Union
@@ -58,10 +65,13 @@ _LOSERS_CTE = """
 
 def upgrade() -> None:
     # ### nettoyage manuel des doublons pré-existants, PUIS commandes générées par Alembic ###
-    op.execute(_LOSERS_CTE + "DELETE FROM photo WHERE inspection_id IN (SELECT id FROM losers)")
+    # Ordre obligatoire : inspection_item (référence photo.id sans ON DELETE) avant photo,
+    # sans quoi une photo référencée par un inspection_item ferait échouer son propre DELETE
+    # en violation de clé étrangère (review-j2-finale.md § 🟡 n°1).
     op.execute(
         _LOSERS_CTE + "DELETE FROM inspection_item WHERE inspection_id IN (SELECT id FROM losers)"
     )
+    op.execute(_LOSERS_CTE + "DELETE FROM photo WHERE inspection_id IN (SELECT id FROM losers)")
     op.execute(_LOSERS_CTE + "DELETE FROM inspection WHERE id IN (SELECT id FROM losers)")
 
     op.create_unique_constraint("uq_inspection_mission", "inspection", ["mission_id"])

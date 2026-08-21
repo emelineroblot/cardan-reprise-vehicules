@@ -11,8 +11,37 @@ staging:
     file: staging/stg_societes.sql
   - name: stg_vehicules
     file: staging/stg_vehicules.sql
+  - name: stg_transitions
+    file: staging/stg_transitions.sql
+  - name: stg_missions
+    file: staging/stg_missions.sql
+  - name: stg_travaux
+    file: staging/stg_travaux.sql
+  - name: stg_couts
+    file: staging/stg_couts.sql
 
 marts:
   - name: mart_saisie_quotidienne
     file: marts/mart_saisie_quotidienne.sql
     unique_index_columns: [jour, operatrice_id]
+  # J3 — ordre déclaré significatif : mart_kpi_global lit les quatre marts précédents (build()
+  # les crée dans cet ordre, refresh() les rafraîchit dans le même ordre, drop() en ordre
+  # inverse). Ne jamais faire remonter mart_kpi_global avant eux dans cette liste.
+  - name: mart_vehicule_marge
+    file: marts/mart_vehicule_marge.sql
+    unique_index_columns: [vehicle_id]
+  - name: mart_cycle_temps
+    file: marts/mart_cycle_temps.sql
+    unique_index_columns: [vehicle_id]
+  - name: mart_pipeline_etat
+    file: marts/mart_pipeline_etat.sql
+    unique_index_columns: [state]
+  - name: mart_refus
+    file: marts/mart_refus.sql
+    unique_index_columns: [mois, type_flotte]
+  - name: mart_travaux
+    file: marts/mart_travaux.sql
+    unique_index_columns: [mois, type]
+  - name: mart_kpi_global
+    file: marts/mart_kpi_global.sql
+    unique_index_columns: [snapshot_key]

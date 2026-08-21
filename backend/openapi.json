@@ -65,6 +65,18 @@
           "width": {
             "title": "Width",
             "type": "integer"
+          },
+          "work_order_id": {
+            "anyOf": [
+              {
+                "format": "uuid",
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Work Order Id"
           }
         },
         "required": [
@@ -649,6 +661,88 @@
           "updated_at"
         ],
         "title": "CompanyRead",
+        "type": "object"
+      },
+      "CycleTempsRead": {
+        "properties": {
+          "delai_affectation_controle_heures": {
+            "anyOf": [
+              {
+                "type": "number"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Delai Affectation Controle Heures"
+          },
+          "delai_controle_decision_heures": {
+            "anyOf": [
+              {
+                "type": "number"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Delai Controle Decision Heures"
+          },
+          "delai_saisie_affectation_heures": {
+            "anyOf": [
+              {
+                "type": "number"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Delai Saisie Affectation Heures"
+          },
+          "delai_total_heures": {
+            "anyOf": [
+              {
+                "type": "number"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Delai Total Heures"
+          },
+          "marque": {
+            "title": "Marque",
+            "type": "string"
+          },
+          "modele": {
+            "title": "Modele",
+            "type": "string"
+          },
+          "reference": {
+            "title": "Reference",
+            "type": "string"
+          },
+          "state": {
+            "title": "State",
+            "type": "string"
+          },
+          "vehicle_id": {
+            "format": "uuid",
+            "title": "Vehicle Id",
+            "type": "string"
+          }
+        },
+        "required": [
+          "vehicle_id",
+          "reference",
+          "state",
+          "marque",
+          "modele",
+          "delai_saisie_affectation_heures",
+          "delai_affectation_controle_heures",
+          "delai_controle_decision_heures",
+          "delai_total_heures"
+        ],
+        "title": "CycleTempsRead",
         "type": "object"
       },
       "DuplicateCandidate": {
@@ -1472,6 +1566,87 @@
         "title": "IntakeBatchRead",
         "type": "object"
       },
+      "KpiGlobalRead": {
+        "properties": {
+          "cout_travaux_moyen_cents": {
+            "anyOf": [
+              {
+                "type": "integer"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Cout Travaux Moyen Cents"
+          },
+          "delai_cycle_moyen_heures": {
+            "anyOf": [
+              {
+                "type": "number"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Delai Cycle Moyen Heures"
+          },
+          "marge_moyenne_cents": {
+            "anyOf": [
+              {
+                "type": "integer"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Marge Moyenne Cents"
+          },
+          "nb_achats_valides": {
+            "title": "Nb Achats Valides",
+            "type": "integer"
+          },
+          "nb_marges_negatives": {
+            "title": "Nb Marges Negatives",
+            "type": "integer"
+          },
+          "nb_refuses": {
+            "title": "Nb Refuses",
+            "type": "integer"
+          },
+          "nb_vehicules_actifs": {
+            "title": "Nb Vehicules Actifs",
+            "type": "integer"
+          },
+          "nb_vehicules_total": {
+            "title": "Nb Vehicules Total",
+            "type": "integer"
+          },
+          "taux_refus_global": {
+            "anyOf": [
+              {
+                "type": "number"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Taux Refus Global"
+          }
+        },
+        "required": [
+          "nb_vehicules_total",
+          "nb_vehicules_actifs",
+          "nb_achats_valides",
+          "nb_refuses",
+          "taux_refus_global",
+          "marge_moyenne_cents",
+          "nb_marges_negatives",
+          "delai_cycle_moyen_heures",
+          "cout_travaux_moyen_cents"
+        ],
+        "title": "KpiGlobalRead",
+        "type": "object"
+      },
       "LoginRequest": {
         "properties": {
           "email": {
@@ -2064,6 +2239,64 @@
         "title": "PhotoRead",
         "type": "object"
       },
+      "PipelineCountsResponse": {
+        "properties": {
+          "counts": {
+            "items": {
+              "$ref": "#/components/schemas/PipelineStateCount"
+            },
+            "title": "Counts",
+            "type": "array"
+          }
+        },
+        "required": [
+          "counts"
+        ],
+        "title": "PipelineCountsResponse",
+        "type": "object"
+      },
+      "PipelineEtatRead": {
+        "properties": {
+          "nb_vehicules": {
+            "title": "Nb Vehicules",
+            "type": "integer"
+          },
+          "state": {
+            "title": "State",
+            "type": "string"
+          },
+          "valeur_immobilisee_cents": {
+            "title": "Valeur Immobilisee Cents",
+            "type": "integer"
+          }
+        },
+        "required": [
+          "state",
+          "nb_vehicules",
+          "valeur_immobilisee_cents"
+        ],
+        "title": "PipelineEtatRead",
+        "type": "object"
+      },
+      "PipelineStateCount": {
+        "description": "Une colonne du Kanban administrateur (brief J3) — `GET /vehicles/pipeline-counts`.",
+        "properties": {
+          "count": {
+            "title": "Count",
+            "type": "integer"
+          },
+          "state": {
+            "title": "State",
+            "type": "string"
+          }
+        },
+        "required": [
+          "state",
+          "count"
+        ],
+        "title": "PipelineStateCount",
+        "type": "object"
+      },
       "PushPublicKeyResponse": {
         "description": "`enabled=False` quand les clés VAPID sont absentes — le front ne doit alors jamais\nproposer l'abonnement push (arbitrage : son absence ne dégrade jamais le parcours).",
         "properties": {
@@ -2168,6 +2401,47 @@
         "title": "PushSubscriptionRead",
         "type": "object"
       },
+      "RefusRead": {
+        "properties": {
+          "mois": {
+            "format": "date",
+            "title": "Mois",
+            "type": "string"
+          },
+          "nb_proposes": {
+            "title": "Nb Proposes",
+            "type": "integer"
+          },
+          "nb_refuses": {
+            "title": "Nb Refuses",
+            "type": "integer"
+          },
+          "taux_refus": {
+            "anyOf": [
+              {
+                "type": "number"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Taux Refus"
+          },
+          "type_flotte": {
+            "title": "Type Flotte",
+            "type": "string"
+          }
+        },
+        "required": [
+          "mois",
+          "type_flotte",
+          "nb_proposes",
+          "nb_refuses",
+          "taux_refus"
+        ],
+        "title": "RefusRead",
+        "type": "object"
+      },
       "RequiredAnglesResponse": {
         "description": "Parcours d'angles imposé (brief J2) — ce que le front doit encore capturer pour un\n`inspection_id` donné.",
         "properties": {
@@ -2269,6 +2543,59 @@
         "title": "TransitionRequest",
         "type": "object"
       },
+      "TravauxRead": {
+        "properties": {
+          "cout_moyen_reel_cents": {
+            "anyOf": [
+              {
+                "type": "integer"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Cout Moyen Reel Cents"
+          },
+          "ecart_estime_reel_cents": {
+            "anyOf": [
+              {
+                "type": "integer"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Ecart Estime Reel Cents"
+          },
+          "mois": {
+            "format": "date",
+            "title": "Mois",
+            "type": "string"
+          },
+          "nb_clos": {
+            "title": "Nb Clos",
+            "type": "integer"
+          },
+          "type": {
+            "title": "Type",
+            "type": "string"
+          },
+          "volume": {
+            "title": "Volume",
+            "type": "integer"
+          }
+        },
+        "required": [
+          "mois",
+          "type",
+          "volume",
+          "nb_clos",
+          "cout_moyen_reel_cents",
+          "ecart_estime_reel_cents"
+        ],
+        "title": "TravauxRead",
+        "type": "object"
+      },
       "UnreadCountResponse": {
         "properties": {
           "count": {
@@ -2359,6 +2686,90 @@
           "type"
         ],
         "title": "ValidationError",
+        "type": "object"
+      },
+      "VehicleCostCreate": {
+        "properties": {
+          "commentaire": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Commentaire"
+          },
+          "montant_cents": {
+            "minimum": 0.0,
+            "title": "Montant Cents",
+            "type": "integer"
+          },
+          "type": {
+            "title": "Type",
+            "type": "string"
+          }
+        },
+        "required": [
+          "type",
+          "montant_cents"
+        ],
+        "title": "VehicleCostCreate",
+        "type": "object"
+      },
+      "VehicleCostRead": {
+        "properties": {
+          "commentaire": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Commentaire"
+          },
+          "created_at": {
+            "format": "date-time",
+            "title": "Created At",
+            "type": "string"
+          },
+          "created_by_id": {
+            "format": "uuid",
+            "title": "Created By Id",
+            "type": "string"
+          },
+          "id": {
+            "format": "uuid",
+            "title": "Id",
+            "type": "string"
+          },
+          "montant_cents": {
+            "title": "Montant Cents",
+            "type": "integer"
+          },
+          "type": {
+            "title": "Type",
+            "type": "string"
+          },
+          "vehicle_id": {
+            "format": "uuid",
+            "title": "Vehicle Id",
+            "type": "string"
+          }
+        },
+        "required": [
+          "id",
+          "vehicle_id",
+          "type",
+          "montant_cents",
+          "commentaire",
+          "created_by_id",
+          "created_at"
+        ],
+        "title": "VehicleCostRead",
         "type": "object"
       },
       "VehicleCreate": {
@@ -2633,8 +3044,15 @@
             "title": "Energie"
           },
           "frais_transport_cents": {
-            "title": "Frais Transport Cents",
-            "type": "integer"
+            "anyOf": [
+              {
+                "type": "integer"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Frais Transport Cents"
           },
           "id": {
             "format": "uuid",
@@ -3078,8 +3496,15 @@
             "title": "Energie"
           },
           "frais_transport_cents": {
-            "title": "Frais Transport Cents",
-            "type": "integer"
+            "anyOf": [
+              {
+                "type": "integer"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Frais Transport Cents"
           },
           "id": {
             "format": "uuid",
@@ -3312,6 +3737,376 @@
         ],
         "title": "VehicleStateTransitionRead",
         "type": "object"
+      },
+      "VehiculeMargeRead": {
+        "properties": {
+          "company_denomination": {
+            "title": "Company Denomination",
+            "type": "string"
+          },
+          "company_id": {
+            "format": "uuid",
+            "title": "Company Id",
+            "type": "string"
+          },
+          "cout_atelier_reel_cents": {
+            "title": "Cout Atelier Reel Cents",
+            "type": "integer"
+          },
+          "cout_hors_atelier_cents": {
+            "title": "Cout Hors Atelier Cents",
+            "type": "integer"
+          },
+          "date_proposition": {
+            "format": "date",
+            "title": "Date Proposition",
+            "type": "string"
+          },
+          "frais_transport_cents": {
+            "title": "Frais Transport Cents",
+            "type": "integer"
+          },
+          "has_marge": {
+            "title": "Has Marge",
+            "type": "boolean"
+          },
+          "marge_cents": {
+            "anyOf": [
+              {
+                "type": "integer"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Marge Cents"
+          },
+          "marge_pct": {
+            "anyOf": [
+              {
+                "type": "number"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Marge Pct"
+          },
+          "marque": {
+            "title": "Marque",
+            "type": "string"
+          },
+          "modele": {
+            "title": "Modele",
+            "type": "string"
+          },
+          "prix_achat_negocie_cents": {
+            "anyOf": [
+              {
+                "type": "integer"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Prix Achat Negocie Cents"
+          },
+          "reference": {
+            "title": "Reference",
+            "type": "string"
+          },
+          "state": {
+            "title": "State",
+            "type": "string"
+          },
+          "state_label": {
+            "title": "State Label",
+            "type": "string"
+          },
+          "valeur_revente_estimee_cents": {
+            "anyOf": [
+              {
+                "type": "integer"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Valeur Revente Estimee Cents"
+          },
+          "vehicle_id": {
+            "format": "uuid",
+            "title": "Vehicle Id",
+            "type": "string"
+          }
+        },
+        "required": [
+          "vehicle_id",
+          "reference",
+          "company_id",
+          "company_denomination",
+          "state",
+          "state_label",
+          "marque",
+          "modele",
+          "date_proposition",
+          "prix_achat_negocie_cents",
+          "frais_transport_cents",
+          "valeur_revente_estimee_cents",
+          "cout_hors_atelier_cents",
+          "cout_atelier_reel_cents",
+          "marge_cents",
+          "marge_pct",
+          "has_marge"
+        ],
+        "title": "VehiculeMargeRead",
+        "type": "object"
+      },
+      "WorkOrderLineCreate": {
+        "properties": {
+          "categorie": {
+            "title": "Categorie",
+            "type": "string"
+          },
+          "libelle": {
+            "maxLength": 255,
+            "minLength": 1,
+            "title": "Libelle",
+            "type": "string"
+          },
+          "prix_unitaire_cents": {
+            "minimum": 0.0,
+            "title": "Prix Unitaire Cents",
+            "type": "integer"
+          },
+          "quantite": {
+            "anyOf": [
+              {
+                "exclusiveMinimum": 0.0,
+                "type": "number"
+              },
+              {
+                "pattern": "^(?!^[-+.]*$)[+-]?0*\\d*\\.?\\d*$",
+                "type": "string"
+              }
+            ],
+            "title": "Quantite"
+          }
+        },
+        "required": [
+          "libelle",
+          "categorie",
+          "quantite",
+          "prix_unitaire_cents"
+        ],
+        "title": "WorkOrderLineCreate",
+        "type": "object"
+      },
+      "WorkOrderLineRead": {
+        "properties": {
+          "categorie": {
+            "title": "Categorie",
+            "type": "string"
+          },
+          "created_at": {
+            "format": "date-time",
+            "title": "Created At",
+            "type": "string"
+          },
+          "id": {
+            "format": "uuid",
+            "title": "Id",
+            "type": "string"
+          },
+          "libelle": {
+            "title": "Libelle",
+            "type": "string"
+          },
+          "montant_cents": {
+            "title": "Montant Cents",
+            "type": "integer"
+          },
+          "prix_unitaire_cents": {
+            "title": "Prix Unitaire Cents",
+            "type": "integer"
+          },
+          "quantite": {
+            "pattern": "^(?!^[-+.]*$)[+-]?0*\\d*\\.?\\d*$",
+            "title": "Quantite",
+            "type": "string"
+          },
+          "work_order_id": {
+            "format": "uuid",
+            "title": "Work Order Id",
+            "type": "string"
+          }
+        },
+        "required": [
+          "id",
+          "work_order_id",
+          "libelle",
+          "categorie",
+          "quantite",
+          "prix_unitaire_cents",
+          "montant_cents",
+          "created_at"
+        ],
+        "title": "WorkOrderLineRead",
+        "type": "object"
+      },
+      "WorkOrderRead": {
+        "properties": {
+          "assigned_to_id": {
+            "anyOf": [
+              {
+                "format": "uuid",
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Assigned To Id"
+          },
+          "commentaire_atelier": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Commentaire Atelier"
+          },
+          "completed_at": {
+            "anyOf": [
+              {
+                "format": "date-time",
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Completed At"
+          },
+          "created_by_id": {
+            "format": "uuid",
+            "title": "Created By Id",
+            "type": "string"
+          },
+          "description": {
+            "title": "Description",
+            "type": "string"
+          },
+          "id": {
+            "format": "uuid",
+            "title": "Id",
+            "type": "string"
+          },
+          "lines": {
+            "items": {
+              "$ref": "#/components/schemas/WorkOrderLineRead"
+            },
+            "title": "Lines",
+            "type": "array"
+          },
+          "montant_estime_cents": {
+            "anyOf": [
+              {
+                "type": "integer"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Montant Estime Cents"
+          },
+          "requested_at": {
+            "format": "date-time",
+            "title": "Requested At",
+            "type": "string"
+          },
+          "started_at": {
+            "anyOf": [
+              {
+                "format": "date-time",
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Started At"
+          },
+          "state": {
+            "title": "State",
+            "type": "string"
+          },
+          "type": {
+            "title": "Type",
+            "type": "string"
+          },
+          "vehicle_id": {
+            "format": "uuid",
+            "title": "Vehicle Id",
+            "type": "string"
+          }
+        },
+        "required": [
+          "id",
+          "vehicle_id",
+          "type",
+          "state",
+          "description",
+          "montant_estime_cents",
+          "created_by_id",
+          "assigned_to_id",
+          "requested_at",
+          "started_at",
+          "completed_at",
+          "commentaire_atelier"
+        ],
+        "title": "WorkOrderRead",
+        "type": "object"
+      },
+      "WorkOrderStateUpdate": {
+        "description": "`POST /work-orders/{id}/state` — mini-automate `demande -> en_cours -> termine|annule`.",
+        "properties": {
+          "assigned_to_id": {
+            "anyOf": [
+              {
+                "format": "uuid",
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Assigned To Id"
+          },
+          "commentaire_atelier": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Commentaire Atelier"
+          },
+          "to_state": {
+            "title": "To State",
+            "type": "string"
+          }
+        },
+        "required": [
+          "to_state"
+        ],
+        "title": "WorkOrderStateUpdate",
+        "type": "object"
       }
     }
   },
@@ -3422,6 +4217,144 @@
         ]
       }
     },
+    "/api/v1/analytics/cycle-temps": {
+      "get": {
+        "description": "`GET /analytics/cycle-temps` — délai de cycle par véhicule (brief J3), de la création de\nla fiche à la décision d'achat/refus/annulation.",
+        "operationId": "get_cycle_temps_api_v1_analytics_cycle_temps_get",
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "items": {
+                    "$ref": "#/components/schemas/CycleTempsRead"
+                  },
+                  "title": "Response Get Cycle Temps Api V1 Analytics Cycle Temps Get",
+                  "type": "array"
+                }
+              }
+            },
+            "description": "Successful Response"
+          }
+        },
+        "summary": "Get Cycle Temps",
+        "tags": [
+          "analytics"
+        ]
+      }
+    },
+    "/api/v1/analytics/kpi-global": {
+      "get": {
+        "description": "`GET /analytics/kpi-global` — les tuiles du dashboard (plan.md § 5.2).",
+        "operationId": "get_kpi_global_api_v1_analytics_kpi_global_get",
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/KpiGlobalRead"
+                }
+              }
+            },
+            "description": "Successful Response"
+          }
+        },
+        "summary": "Get Kpi Global",
+        "tags": [
+          "analytics"
+        ]
+      }
+    },
+    "/api/v1/analytics/marge": {
+      "get": {
+        "description": "`GET /analytics/marge` — marge par véhicule (brief J3, cœur de la démonstration).\n\n`sort` accepte `marge_cents`/`-marge_cents`/`date_proposition`/`-date_proposition` ; toute\nautre valeur retombe sur `-marge_cents`. Les lignes sans valeur estimée (`has_marge = false`,\n`marge_cents = NULL`) sont placées en fin de tri (`NULLS LAST`), jamais mêlées aux marges\nréellement nulles ou négatives.\n\nBug corrigé (revue dev-frontend J3, 🔴 bloquant) : `WHERE (:state IS NULL OR state = :state)`\nlevait systématiquement `psycopg.errors.AmbiguousParameter` (« could not determine data type\nof parameter $1 ») — psycopg 3 en protocole étendu prépare la requête une fois pour son texte\nSQL et doit fixer le type de chaque `$n` à la préparation, indépendamment de la valeur liée\nensuite ; `$1 IS NULL` ne contraint aucun type, donc l'échec se produisait **avec et sans**\nfiltre `state` (vérifié : reproduit hors HTTP dans les deux cas avant correctif). La clause\n`WHERE state = :state` n'est désormais émise que lorsque `state` est effectivement fourni —\nchaque forme de requête a alors une signature de paramètres non ambiguë, sans caster ni lier\nde type explicitement (inutile une fois l'ambiguïté structurelle supprimée).",
+        "operationId": "get_marge_api_v1_analytics_marge_get",
+        "parameters": [
+          {
+            "in": "query",
+            "name": "state",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "State"
+            }
+          },
+          {
+            "in": "query",
+            "name": "sort",
+            "required": false,
+            "schema": {
+              "default": "-marge_cents",
+              "title": "Sort",
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "items": {
+                    "$ref": "#/components/schemas/VehiculeMargeRead"
+                  },
+                  "title": "Response Get Marge Api V1 Analytics Marge Get",
+                  "type": "array"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "summary": "Get Marge",
+        "tags": [
+          "analytics"
+        ]
+      }
+    },
+    "/api/v1/analytics/pipeline-etat": {
+      "get": {
+        "description": "`GET /analytics/pipeline-etat` — vue d'ensemble analytique du pipeline (valeur immobilisée\npar état). Distinct de `GET /vehicles/pipeline-counts` (opérationnel, live, sert le Kanban\nmanipulable) : celui-ci sert le dashboard, à la fraîcheur du dernier `refresh`.",
+        "operationId": "get_pipeline_etat_api_v1_analytics_pipeline_etat_get",
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "items": {
+                    "$ref": "#/components/schemas/PipelineEtatRead"
+                  },
+                  "title": "Response Get Pipeline Etat Api V1 Analytics Pipeline Etat Get",
+                  "type": "array"
+                }
+              }
+            },
+            "description": "Successful Response"
+          }
+        },
+        "summary": "Get Pipeline Etat",
+        "tags": [
+          "analytics"
+        ]
+      }
+    },
     "/api/v1/analytics/refresh": {
       "post": {
         "description": "Câblé sur le bouton « Actualiser les indicateurs » du dashboard (plan.md § 3.7-5).",
@@ -3446,6 +4379,32 @@
         ]
       }
     },
+    "/api/v1/analytics/refus": {
+      "get": {
+        "description": "`GET /analytics/refus` — taux de refus par mois × type de flotte (brief J3).",
+        "operationId": "get_refus_api_v1_analytics_refus_get",
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "items": {
+                    "$ref": "#/components/schemas/RefusRead"
+                  },
+                  "title": "Response Get Refus Api V1 Analytics Refus Get",
+                  "type": "array"
+                }
+              }
+            },
+            "description": "Successful Response"
+          }
+        },
+        "summary": "Get Refus",
+        "tags": [
+          "analytics"
+        ]
+      }
+    },
     "/api/v1/analytics/status": {
       "get": {
         "operationId": "analytics_status_api_v1_analytics_status_get",
@@ -3464,6 +4423,32 @@
           }
         },
         "summary": "Analytics Status",
+        "tags": [
+          "analytics"
+        ]
+      }
+    },
+    "/api/v1/analytics/travaux": {
+      "get": {
+        "description": "`GET /analytics/travaux` — coût moyen des travaux par mois × type (brief J3).",
+        "operationId": "get_travaux_api_v1_analytics_travaux_get",
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "items": {
+                    "$ref": "#/components/schemas/TravauxRead"
+                  },
+                  "title": "Response Get Travaux Api V1 Analytics Travaux Get",
+                  "type": "array"
+                }
+              }
+            },
+            "description": "Successful Response"
+          }
+        },
+        "summary": "Get Travaux",
         "tags": [
           "analytics"
         ]
@@ -4989,6 +5974,28 @@
         ]
       }
     },
+    "/api/v1/vehicles/pipeline-counts": {
+      "get": {
+        "description": "Kanban administrateur (brief J3) — nombre de véhicules par état, tous les 11 états\nreprésentés même à zéro (une colonne vide reste une colonne). **Doit être déclaré avant**\n`GET /vehicles/{vehicle_id}` dans ce routeur : sans quoi FastAPI tenterait de parser\n`\"pipeline-counts\"` comme un UUID de véhicule.\n\nLecture strictement opérationnelle (`vehicle` en direct, jamais un mart) : contrairement au\ndashboard analytique, un Kanban est une vue **interactive** dont l'état doit refléter la\ndernière transition, pas la dernière fenêtre de rafraîchissement (plan.md § 3.7 : la règle\n« le dashboard lit les marts » vise les indicateurs de pilotage, pas cet écran opérationnel).",
+        "operationId": "pipeline_counts_api_v1_vehicles_pipeline_counts_get",
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/PipelineCountsResponse"
+                }
+              }
+            },
+            "description": "Successful Response"
+          }
+        },
+        "summary": "Pipeline Counts",
+        "tags": [
+          "vehicles"
+        ]
+      }
+    },
     "/api/v1/vehicles/{vehicle_id}": {
       "get": {
         "operationId": "get_vehicle_api_v1_vehicles__vehicle_id__get",
@@ -5083,6 +6090,104 @@
         ]
       }
     },
+    "/api/v1/vehicles/{vehicle_id}/costs": {
+      "get": {
+        "operationId": "list_vehicle_costs_api_v1_vehicles__vehicle_id__costs_get",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "vehicle_id",
+            "required": true,
+            "schema": {
+              "format": "uuid",
+              "title": "Vehicle Id",
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "items": {
+                    "$ref": "#/components/schemas/VehicleCostRead"
+                  },
+                  "title": "Response List Vehicle Costs Api V1 Vehicles  Vehicle Id  Costs Get",
+                  "type": "array"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "summary": "List Vehicle Costs",
+        "tags": [
+          "work-orders"
+        ]
+      },
+      "post": {
+        "operationId": "add_vehicle_cost_api_v1_vehicles__vehicle_id__costs_post",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "vehicle_id",
+            "required": true,
+            "schema": {
+              "format": "uuid",
+              "title": "Vehicle Id",
+              "type": "string"
+            }
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/VehicleCostCreate"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "201": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/VehicleCostRead"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "summary": "Add Vehicle Cost",
+        "tags": [
+          "work-orders"
+        ]
+      }
+    },
     "/api/v1/vehicles/{vehicle_id}/photos": {
       "get": {
         "operationId": "list_vehicle_photos_api_v1_vehicles__vehicle_id__photos_get",
@@ -5112,6 +6217,23 @@
                 }
               ],
               "title": "Inspection Id"
+            }
+          },
+          {
+            "in": "query",
+            "name": "work_order_id",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "format": "uuid",
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Work Order Id"
             }
           },
           {
@@ -5359,6 +6481,202 @@
         "summary": "Post Transition",
         "tags": [
           "vehicles"
+        ]
+      }
+    },
+    "/api/v1/vehicles/{vehicle_id}/work-orders": {
+      "get": {
+        "operationId": "list_vehicle_work_orders_api_v1_vehicles__vehicle_id__work_orders_get",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "vehicle_id",
+            "required": true,
+            "schema": {
+              "format": "uuid",
+              "title": "Vehicle Id",
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "items": {
+                    "$ref": "#/components/schemas/WorkOrderRead"
+                  },
+                  "title": "Response List Vehicle Work Orders Api V1 Vehicles  Vehicle Id  Work Orders Get",
+                  "type": "array"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "summary": "List Vehicle Work Orders",
+        "tags": [
+          "work-orders"
+        ]
+      }
+    },
+    "/api/v1/work-orders/{work_order_id}": {
+      "get": {
+        "operationId": "get_work_order_api_v1_work_orders__work_order_id__get",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "work_order_id",
+            "required": true,
+            "schema": {
+              "format": "uuid",
+              "title": "Work Order Id",
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/WorkOrderRead"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "summary": "Get Work Order",
+        "tags": [
+          "work-orders"
+        ]
+      }
+    },
+    "/api/v1/work-orders/{work_order_id}/lines": {
+      "post": {
+        "operationId": "add_work_order_line_api_v1_work_orders__work_order_id__lines_post",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "work_order_id",
+            "required": true,
+            "schema": {
+              "format": "uuid",
+              "title": "Work Order Id",
+              "type": "string"
+            }
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/WorkOrderLineCreate"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "201": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/WorkOrderLineRead"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "summary": "Add Work Order Line",
+        "tags": [
+          "work-orders"
+        ]
+      }
+    },
+    "/api/v1/work-orders/{work_order_id}/state": {
+      "post": {
+        "operationId": "transition_work_order_state_api_v1_work_orders__work_order_id__state_post",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "work_order_id",
+            "required": true,
+            "schema": {
+              "format": "uuid",
+              "title": "Work Order Id",
+              "type": "string"
+            }
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/WorkOrderStateUpdate"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/WorkOrderRead"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "summary": "Transition Work Order State",
+        "tags": [
+          "work-orders"
         ]
       }
     }

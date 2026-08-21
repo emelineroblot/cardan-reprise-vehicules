@@ -72,10 +72,11 @@ export function useInspectionDraft(vehicleId: string, missionId: string) {
     const current = draftRef.current;
     if (!current) return;
     // Recharge PAR CLEF (`getInspection`), pas `getActiveInspectionForVehicle` : ce
-    // dernier filtre les brouillons déjà soumis (`!submitted_at`) — utile pour le
-    // *bootstrap* (retrouver le brouillon actif), mais il rend la transition vers
-    // « soumis » invisible en boucle de rechargement (le brouillon qu'on recharge
-    // disparaît de son propre filtre au moment précis où `submitted_at` se pose).
+    // dernier ne filtre plus les brouillons soumis depuis le correctif J2 (review §5)
+    // — mais il redérive « le plus récent brouillon de ce véhicule » depuis `getAll()`
+    // à chaque appel, une requête plus large et plus coûteuse pour recharger un
+    // enregistrement dont on connaît déjà la clé. `getInspection` va droit à
+    // l'enregistrement courant, sans repasser par ce filtrage/tri.
     const [freshDraft, freshPhotos] = await Promise.all([
       getInspection(current.client_uuid),
       getPhotosForInspection(current.client_uuid),

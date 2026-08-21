@@ -1,6 +1,6 @@
 ---
 type: pieges
-maj: 2026-08-20
+maj: 2026-08-21
 ---
 
 # Pièges spécifiques à ce projet
@@ -107,10 +107,20 @@ vivent dans la skill globale `stack-pitfalls`, pas ici.
   invocations serverless) : la bascule vers un stockage objet est un prérequis de déploiement, pas
   une amélioration. Symétriquement, si des clés VAPID sont posées en production, `requirements.txt`
   doit être régénéré avec l'extra `webpush`, sinon le push échoue à chaque envoi. *(2026-08-20)*
-- **Le seed J1 pose `assigned_driver_id` sur des véhicules sans créer la ligne `mission`
-  correspondante** → la liste `GET /missions` du chauffeur de démo est **vide** alors que les fiches
-  véhicules affichent bien un chauffeur. Une démo du module terrain doit passer par une affectation
-  faite en direct dans l'UI, jamais s'appuyer sur l'état seedé. *(2026-08-20)*
+- ✅ **Corrigé (2026-08-21), à ne pas rouvrir sans relire `_seed_terrain_for_vehicle`
+  (`app/seed/demo.py`) :** le seed J1/J2/J3 ne référençait **jamais** `Mission`/`Inspection`/
+  `Photo`/`Notification`, à aucun jalon — `assigned_driver_id` était posé sur le véhicule sans
+  créer la ligne `mission` correspondante, `GET /missions` du chauffeur de démo restait **vide**
+  malgré 52 véhicules affectés dans le Kanban admin (`tests-j3.md` § 3, vérifié en HTTP réel). Le
+  seed rejoue désormais, pour chaque véhicule, les effets `mission`/`inspection`/`photo` (angles
+  de contrôle **et** avant/après travaux, vrais fichiers PNG via `PhotoStorage`)/`notification`
+  qu'aurait produits chaque étape de son historique — sur un flux `random.Random` **dédié**
+  (`terrain_rng`), jamais celui qui pilote marque/modèle/état/prix (`rng`) : le voir survivre à
+  trois jalons a montré qu'aucun test ne regardait la cohérence du jeu de démo lui-même, d'où les
+  cinq tests dédiés dans `tests/integration/test_seed_demo_invariants.py` (aucun véhicule
+  post-`AFFECTE` sans mission, aucun `CONTROLE_EN_COURS` sans inspection, aucune `photo` sans
+  fichier réellement lisible). Une démo du module terrain peut donc à nouveau s'appuyer sur
+  l'état seedé — plus besoin de passer par une affectation faite en direct dans l'UI.
 - **La PWA installée démarre sur `/vehicules` (`start_url` + redirection du middleware), pas sur
   `/missions`** — chaque lancement pose le chauffeur sur la liste globale avec ses colonnes
   financières, alors que `homeRouteForRole("chauffeur")` dit `/missions`. Pas d'écran d'erreur (les
@@ -141,3 +151,10 @@ vivent dans la skill globale `stack-pitfalls`, pas ici.
   contrôle. Aucune donnée n'est perdue (IndexedDB intact). « Mode hors ligne complet » est
   explicitement hors périmètre — à savoir avant une démo, à traiter le jour où ce n'est plus une
   démo. *(2026-08-20)*
+- **Deux préfixes de stockage photo distincts, à ne jamais confondre** :
+  `runtime/{vehicle_id}/...` (uploads réels via `POST /vehicles/{id}/photos`, purgé par
+  `app/seed/reset.py` **après** chaque seed) et `seed/{vehicle_id}/...` (photos générées par
+  `app/seed/demo.py`, purgées **par le seed lui-même en tout début d'exécution**, pour rester
+  idempotentes sur disque). Écrire une photo de seed sous `runtime/` la ferait disparaître dès la
+  fin du reset qui vient de la créer — le seed doit toujours écrire sous `seed/`, jamais l'inverse.
+  *(2026-08-21)*

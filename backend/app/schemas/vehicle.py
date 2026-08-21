@@ -76,7 +76,15 @@ class VehicleStateTransitionRead(BaseModel):
 
 class VehicleReadBase(BaseModel):
     """Champs communs à la liste et au détail — la liste s'arrête ici, le détail ajoute
-    `state_history` (revue § 🟠 « N+1 sur la liste de suivi »)."""
+    `state_history` (revue § 🟠 « N+1 sur la liste de suivi »).
+
+    Cloisonnement des champs financiers (revue J3, 🔴 « le cloisonnement des données financières
+    n'existe pas côté serveur ») : `prix_achat_negocie_cents`, `valeur_revente_estimee_cents` et
+    `frais_transport_cents` sont mis à `None` par `app/api/v1/vehicles.py::_redact_finances`
+    avant sérialisation pour tout rôle hors `operatrice`/`administrateur` — masquer dans
+    l'interface ne protège rien, la valeur ne doit jamais quitter le serveur. `frais_transport_
+    cents` devient donc nullable ici (il ne l'était pas côté modèle ORM, `NOT NULL DEFAULT 0`) :
+    c'est un changement de contrat délibéré, propagé à `openapi.json`."""
 
     model_config = ConfigDict(from_attributes=True)
 
@@ -99,7 +107,7 @@ class VehicleReadBase(BaseModel):
     date_proposition: date
     prix_achat_negocie_cents: int | None
     valeur_revente_estimee_cents: int | None
-    frais_transport_cents: int
+    frais_transport_cents: int | None
     commentaire: str | None
     created_by_id: UUID
     assigned_driver_id: UUID | None
@@ -217,6 +225,17 @@ class DuplicateReviewCreate(BaseModel):
     verdict: Literal["duplicate", "not_duplicate"]
     score: float = Field(ge=0, le=1)
     features: dict
+
+
+class PipelineStateCount(BaseModel):
+    """Une colonne du Kanban administrateur (brief J3) — `GET /vehicles/pipeline-counts`."""
+
+    state: str
+    count: int
+
+
+class PipelineCountsResponse(BaseModel):
+    counts: list[PipelineStateCount]
 
 
 class DuplicateReviewRead(BaseModel):

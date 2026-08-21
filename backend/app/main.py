@@ -22,6 +22,7 @@ from app.api.v1.notifications import router as notifications_router
 from app.api.v1.photos import router as photos_router
 from app.api.v1.users import router as users_router
 from app.api.v1.vehicles import router as vehicles_router
+from app.api.v1.work_orders import router as work_orders_router
 from app.core.config import get_settings
 from app.core.errors import register_exception_handlers
 
@@ -60,3 +61,4 @@ app.include_router(
 )
 app.include_router(photos_router, prefix="/api/v1", tags=["photos"])
 app.include_router(notifications_router, prefix="/api/v1/notifications", tags=["notifications"])
+app.include_router(work_orders_router, prefix="/api/v1", tags=["work-orders"])
