@@ -2,11 +2,12 @@
 
 import { use } from "react";
 import Link from "next/link";
-import { ArrowLeft } from "lucide-react";
+import { ArrowLeft, ChevronRight } from "lucide-react";
 import { StateBadge } from "@/components/ui/state-badge";
 import { LoadingState } from "@/components/ui/loading-state";
 import { ErrorState } from "@/components/ui/error-state";
 import { Button } from "@/components/ui/button";
+import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { HistoriqueEtats } from "@/components/domain/HistoriqueEtats";
 import { ActionsTransition } from "@/components/domain/ActionsTransition";
 import { WorkOrdersSection } from "@/components/domain/WorkOrdersSection";
@@ -54,6 +55,19 @@ export default function VehiculeDetailPage({ params }: { params: Promise<{ id: s
               {vehicle.company ? (
                 <p className="text-sm text-muted-foreground">{vehicle.company.denomination}</p>
               ) : null}
+              <nav aria-label="Fil d'Ariane" className="mt-2 flex items-center gap-1 text-xs text-muted-foreground">
+                <Link href="/vehicules" className="hover:text-foreground hover:underline">
+                  Accueil
+                </Link>
+                <ChevronRight className="size-3" aria-hidden="true" />
+                <Link href="/vehicules" className="hover:text-foreground hover:underline">
+                  Suivi des véhicules
+                </Link>
+                <ChevronRight className="size-3" aria-hidden="true" />
+                <span aria-current="page" className="text-foreground">
+                  {vehicle.reference}
+                </span>
+              </nav>
             </div>
             <StateBadge state={vehicle.state} className="text-sm" />
           </div>
@@ -67,68 +81,80 @@ export default function VehiculeDetailPage({ params }: { params: Promise<{ id: s
 
           <div className="grid gap-6 lg:grid-cols-[2fr_1fr]">
             <div className="flex flex-col gap-6">
-              <section aria-labelledby="identite-heading" className="rounded-lg border border-border p-4">
-                <h2 id="identite-heading" className="mb-3 font-medium text-foreground">
-                  Identité du véhicule
-                </h2>
-                <dl className="grid grid-cols-2 gap-x-4 gap-y-2 text-sm sm:grid-cols-3">
-                  <Field label="VIN" value={vehicle.vin || "—"} />
-                  <Field label="Immatriculation" value={formatImmatriculation(vehicle.immatriculation)} />
-                  <Field label="Énergie" value={vehicle.energie ? ENERGIE_LABELS[vehicle.energie] : "—"} />
-                  <Field label="Boîte" value={vehicle.boite ? BOITE_LABELS[vehicle.boite] : "—"} />
-                  <Field label="Couleur" value={vehicle.couleur || "—"} />
-                  <Field
-                    label="1ʳᵉ mise en circulation"
-                    value={formatDate(vehicle.date_mise_en_circulation)}
-                  />
-                  <Field
-                    label="Kilométrage"
-                    value={vehicle.kilometrage != null ? `${vehicle.kilometrage.toLocaleString("fr-FR")} km` : "—"}
-                  />
-                  <Field label="Date de proposition" value={formatDate(vehicle.date_proposition)} />
-                </dl>
-                {vehicle.commentaire ? (
-                  <p className="mt-3 text-sm text-muted-foreground">{vehicle.commentaire}</p>
-                ) : null}
-              </section>
+              <Card role="region" aria-labelledby="identite-heading">
+                <CardHeader>
+                  <CardTitle id="identite-heading" role="heading" aria-level={2}>
+                    Identité du véhicule
+                  </CardTitle>
+                </CardHeader>
+                <CardContent>
+                  <dl className="grid grid-cols-2 gap-x-4 gap-y-2 text-sm sm:grid-cols-3">
+                    <Field label="VIN" value={vehicle.vin || "—"} />
+                    <Field label="Immatriculation" value={formatImmatriculation(vehicle.immatriculation)} />
+                    <Field label="Énergie" value={vehicle.energie ? ENERGIE_LABELS[vehicle.energie] : "—"} />
+                    <Field label="Boîte" value={vehicle.boite ? BOITE_LABELS[vehicle.boite] : "—"} />
+                    <Field label="Couleur" value={vehicle.couleur || "—"} />
+                    <Field
+                      label="1ʳᵉ mise en circulation"
+                      value={formatDate(vehicle.date_mise_en_circulation)}
+                    />
+                    <Field
+                      label="Kilométrage"
+                      value={vehicle.kilometrage != null ? `${vehicle.kilometrage.toLocaleString("fr-FR")} km` : "—"}
+                    />
+                    <Field label="Date de proposition" value={formatDate(vehicle.date_proposition)} />
+                  </dl>
+                  {vehicle.commentaire ? (
+                    <p className="mt-3 text-sm text-muted-foreground">{vehicle.commentaire}</p>
+                  ) : null}
+                </CardContent>
+              </Card>
 
               {canSeeFinances ? (
-                <section aria-labelledby="finances-heading" className="rounded-lg border border-border p-4">
-                  <h2 id="finances-heading" className="mb-3 font-medium text-foreground">
-                    Éléments financiers
-                  </h2>
-                  <dl className="grid grid-cols-2 gap-x-4 gap-y-2 text-sm sm:grid-cols-3">
-                    <Field label="Prix négocié" value={formatMoneyCents(vehicle.prix_achat_negocie_cents)} />
-                    <Field
-                      label="Valeur de revente estimée"
-                      value={formatMoneyCents(vehicle.valeur_revente_estimee_cents)}
-                    />
-                    <Field label="Frais de transport" value={formatMoneyCents(vehicle.frais_transport_cents)} />
-                  </dl>
-                  <div className="mt-4 border-t border-border pt-4">
-                    <h3 className="mb-2 text-sm font-medium text-foreground">Coûts hors atelier</h3>
-                    <VehicleCostsPanel vehicleId={vehicle.id} canManage={hasRole(user, ["administrateur"])} />
-                  </div>
-                </section>
+                <Card role="region" aria-labelledby="finances-heading">
+                  <CardHeader>
+                    <CardTitle id="finances-heading" role="heading" aria-level={2}>
+                      Éléments financiers
+                    </CardTitle>
+                  </CardHeader>
+                  <CardContent>
+                    <dl className="grid grid-cols-2 gap-x-4 gap-y-2 text-sm sm:grid-cols-3">
+                      <Field label="Prix négocié" value={formatMoneyCents(vehicle.prix_achat_negocie_cents)} />
+                      <Field
+                        label="Valeur de revente estimée"
+                        value={formatMoneyCents(vehicle.valeur_revente_estimee_cents)}
+                      />
+                      <Field label="Frais de transport" value={formatMoneyCents(vehicle.frais_transport_cents)} />
+                    </dl>
+                    <div className="mt-4 border-t border-border pt-4">
+                      <h3 className="mb-2 text-sm font-medium text-foreground">Coûts hors atelier</h3>
+                      <VehicleCostsPanel vehicleId={vehicle.id} canManage={hasRole(user, ["administrateur"])} />
+                    </div>
+                  </CardContent>
+                </Card>
               ) : null}
 
               {canSeeWorkOrders ? (
-                <section aria-labelledby="atelier-heading" className="rounded-lg border border-border p-4">
-                  <h2 id="atelier-heading" className="mb-3 font-medium text-foreground">
-                    Atelier — ordres de travaux
-                  </h2>
-                  <WorkOrdersSection vehicleId={vehicle.id} canManage={canManageWorkOrders} />
-                </section>
+                <Card role="region" aria-labelledby="atelier-heading">
+                  <CardHeader>
+                    <CardTitle id="atelier-heading" role="heading" aria-level={2}>
+                      Atelier — ordres de travaux
+                    </CardTitle>
+                  </CardHeader>
+                  <CardContent>
+                    <WorkOrdersSection vehicleId={vehicle.id} canManage={canManageWorkOrders} />
+                  </CardContent>
+                </Card>
               ) : null}
 
               {vehicle.state === "REFUSE" ? (
-                <section className="rounded-lg border border-rose-200 bg-rose-50 p-4 dark:bg-rose-950/30">
+                <div className="rounded-xl bg-rose-50 p-4 ring-1 ring-rose-200 dark:bg-rose-950/30 dark:ring-rose-800">
                   <h2 className="mb-1 font-medium text-foreground">Refus</h2>
                   <p className="text-sm text-muted-foreground">
                     {vehicle.refus_motif ? REFUS_MOTIF_LABELS[vehicle.refus_motif] : "Motif non renseigné"}
                     {vehicle.refus_commentaire ? ` — ${vehicle.refus_commentaire}` : ""}
                   </p>
-                </section>
+                </div>
               ) : null}
 
               <p className="text-xs text-muted-foreground">
@@ -137,12 +163,16 @@ export default function VehiculeDetailPage({ params }: { params: Promise<{ id: s
               </p>
             </div>
 
-            <section aria-labelledby="historique-heading" className="rounded-lg border border-border p-4">
-              <h2 id="historique-heading" className="mb-3 font-medium text-foreground">
-                Historique des états
-              </h2>
-              <HistoriqueEtats history={vehicle.state_history} />
-            </section>
+            <Card role="region" aria-labelledby="historique-heading" className="h-fit">
+              <CardHeader>
+                <CardTitle id="historique-heading" role="heading" aria-level={2}>
+                  Historique des états
+                </CardTitle>
+              </CardHeader>
+              <CardContent>
+                <HistoriqueEtats history={vehicle.state_history} />
+              </CardContent>
+            </Card>
           </div>
         </>
       ) : null}

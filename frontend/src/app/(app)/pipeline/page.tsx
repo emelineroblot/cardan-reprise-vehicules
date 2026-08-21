@@ -1,6 +1,7 @@
 "use client";
 
 import { RoleGuard } from "@/components/domain/RoleGuard";
+import { PageHeader } from "@/components/domain/PageHeader";
 import { KanbanColumn } from "@/components/domain/KanbanColumn";
 import { LoadingState } from "@/components/ui/loading-state";
 import { ErrorState } from "@/components/ui/error-state";
@@ -27,12 +28,11 @@ function PipelineBoard() {
 
   return (
     <div className="flex flex-col gap-6">
-      <div>
-        <h1 className="text-2xl font-semibold tracking-tight">Pipeline</h1>
-        <p className="text-sm text-muted-foreground">
-          Le parc par état, en direct. Cliquez un véhicule pour le manipuler depuis sa fiche.
-        </p>
-      </div>
+      <PageHeader
+        title="Pipeline"
+        description="Le parc par état, en direct. Cliquez un véhicule pour le manipuler depuis sa fiche."
+        breadcrumb={[{ label: "Pipeline" }]}
+      />
 
       {pipeline.isLoading ? <LoadingState label="Chargement du pipeline…" /> : null}
       {pipeline.error ? (

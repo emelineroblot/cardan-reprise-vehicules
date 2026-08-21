@@ -46,6 +46,9 @@ export default function RootLayout({ children }: LayoutProps<"/">) {
     <html
       lang="fr"
       className={`${geistSans.variable} ${geistMono.variable} h-full antialiased`}
+      // next-themes lit le thème (localStorage/système) avant l'hydratation et pose la classe
+      // `.dark` en conséquence : un mismatch serveur/client attendu, jamais une vraie erreur.
+      suppressHydrationWarning
     >
       <body className="min-h-full flex flex-col bg-background text-foreground">
         <a

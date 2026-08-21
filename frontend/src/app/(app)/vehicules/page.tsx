@@ -5,6 +5,8 @@ import { usePathname, useRouter, useSearchParams } from "next/navigation";
 import Link from "next/link";
 import { Search } from "lucide-react";
 import { RoleGuard } from "@/components/domain/RoleGuard";
+import { PageHeader } from "@/components/domain/PageHeader";
+import { Card, CardFooter } from "@/components/ui/card";
 import { DataTable, type DataTableColumn, type DataTableSort } from "@/components/ui/data-table";
 import { StateBadge } from "@/components/ui/state-badge";
 import { Input } from "@/components/ui/input";
@@ -164,21 +166,22 @@ function VehiculesListPage() {
 
   return (
     <div className="flex flex-col gap-6">
-      <div className="flex flex-wrap items-center justify-between gap-3">
-        <div>
-          <h1 className="text-2xl font-semibold tracking-tight">Suivi des véhicules</h1>
-          <p className="text-sm text-muted-foreground">
-            {total > 0 ? `${total} résultat${total > 1 ? "s" : ""}` : "Aucun résultat pour ces filtres."}
-            {isFetching ? " · actualisation…" : ""}
-          </p>
-        </div>
-        <Button asChild>
-          <Link href="/fiches/nouvelle">Nouvelle fiche</Link>
-        </Button>
-      </div>
+      <PageHeader
+        title="Suivi des véhicules"
+        description={
+          (total > 0 ? `${total} résultat${total > 1 ? "s" : ""}` : "Aucun résultat pour ces filtres.") +
+          (isFetching ? " · actualisation…" : "")
+        }
+        breadcrumb={[{ label: "Suivi des véhicules" }]}
+        actions={
+          <Button asChild>
+            <Link href="/fiches/nouvelle">Nouvelle fiche</Link>
+          </Button>
+        }
+      />
 
       <form
-        className="grid gap-3 rounded-lg border border-border p-4 sm:grid-cols-2 lg:grid-cols-5"
+        className="grid gap-3 rounded-xl bg-card p-4 ring-1 ring-foreground/10 sm:grid-cols-2 lg:grid-cols-5"
         onSubmit={(e) => {
           e.preventDefault();
           updateParams({ q: qDraft || undefined });
@@ -268,48 +271,50 @@ function VehiculesListPage() {
         ) : null}
       </form>
 
-      <DataTable
-        columns={columns}
-        rows={data?.items ?? []}
-        rowKey={(v) => v.id}
-        caption="Liste des véhicules suivis"
-        isLoading={isLoading}
-        error={error}
-        onRetry={() => refetch()}
-        emptyTitle="Aucun véhicule ne correspond à ces filtres"
-        emptyDescription="Ajustez les filtres ou créez une nouvelle fiche d'achat."
-        sort={sort}
-        onSortChange={handleSortChange}
-        onRowClick={(v) => router.push(`/vehicules/${v.id}`)}
-      />
+      <Card className="gap-0 p-0">
+        <DataTable
+          columns={columns}
+          rows={data?.items ?? []}
+          rowKey={(v) => v.id}
+          caption="Liste des véhicules suivis"
+          isLoading={isLoading}
+          error={error}
+          onRetry={() => refetch()}
+          emptyTitle="Aucun véhicule ne correspond à ces filtres"
+          emptyDescription="Ajustez les filtres ou créez une nouvelle fiche d'achat."
+          sort={sort}
+          onSortChange={handleSortChange}
+          onRowClick={(v) => router.push(`/vehicules/${v.id}`)}
+        />
 
-      {total > 0 ? (
-        <div className="flex items-center justify-between text-sm text-muted-foreground">
-          <span>
-            {from}–{to} sur {total}
-          </span>
-          <div className="flex gap-2">
-            <Button
-              type="button"
-              variant="outline"
-              size="sm"
-              disabled={offset === 0}
-              onClick={() => updateParams({ offset: String(Math.max(0, offset - LIMIT)) }, false)}
-            >
-              Précédent
-            </Button>
-            <Button
-              type="button"
-              variant="outline"
-              size="sm"
-              disabled={offset + LIMIT >= total}
-              onClick={() => updateParams({ offset: String(offset + LIMIT) }, false)}
-            >
-              Suivant
-            </Button>
-          </div>
-        </div>
-      ) : null}
+        {total > 0 ? (
+          <CardFooter className="justify-between text-sm text-muted-foreground">
+            <span>
+              {from}–{to} sur {total}
+            </span>
+            <div className="flex gap-2">
+              <Button
+                type="button"
+                variant="outline"
+                size="sm"
+                disabled={offset === 0}
+                onClick={() => updateParams({ offset: String(Math.max(0, offset - LIMIT)) }, false)}
+              >
+                Précédent
+              </Button>
+              <Button
+                type="button"
+                variant="outline"
+                size="sm"
+                disabled={offset + LIMIT >= total}
+                onClick={() => updateParams({ offset: String(offset + LIMIT) }, false)}
+              >
+                Suivant
+              </Button>
+            </div>
+          </CardFooter>
+        ) : null}
+      </Card>
     </div>
   );
 }
