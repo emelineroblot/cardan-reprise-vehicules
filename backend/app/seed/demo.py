@@ -110,8 +110,8 @@ NUM_COMPANIES = 12
 DATE_WINDOW_DAYS = 90
 
 # Préfixe de stockage des photos de démo — distinct de `runtime/` (uploads réels, purgé par le
-# reset nocturne après le seed, `app/seed/reset.py`). Purgé en tout début de `seed_demo` lui-même
-# pour rester idempotent sur disque d'un reset à l'autre (voir docstring de module).
+# reset nocturne après le seed, `app/seed/reset.py`). Purgé APRÈS le commit du reset, jamais
+# pendant `seed_demo` (voir `purge_stale_seed_photos` ci-dessous et la note dans `seed_demo`).
 _PHOTO_STORAGE_PREFIX = "seed"
 
 CATALOGUE = (
@@ -1024,6 +1024,41 @@ def _calibrate_dedup_demo_vehicle(
     db.flush()
 
 
+def snapshot_stale_seed_photo_prefixes(storage: PhotoStorage, *, bucket: str) -> list[str]:
+    """Photographie, **avant** d'appeler `seed_demo`, la liste des sous-répertoires déjà présents
+    sous `seed/` (un par véhicule du run précédent) — c'est cette liste, et seulement elle, que
+    `purge_stale_seed_photos` supprimera une fois le nouveau run commité.
+
+    Pourquoi pas un simple `delete_prefix(bucket=bucket, prefix="seed/")` global après coup :
+    les identifiants de véhicule sont des `uuid4()` non seedés (jamais tirés du `rng`/`terrain_
+    rng` déterministes, cf. docstring de module) — le run courant écrit donc ses photos sous des
+    sous-répertoires **différents** de ceux du run précédent, qui cohabitent tous les deux sous
+    `seed/` le temps du run (« deux générations transitoires »). Un `delete_prefix("seed/")`
+    global supprimerait indifféremment l'ancienne ET la nouvelle génération. Cette fonction fige
+    la liste des seuls sous-répertoires « anciens » avant que la nouvelle génération n'apparaisse,
+    pour que `purge_stale_seed_photos` ne touche jamais qu'à eux."""
+    return storage.list_top_level(bucket=bucket, prefix=f"{_PHOTO_STORAGE_PREFIX}/")
+
+
+def purge_stale_seed_photos(
+    storage: PhotoStorage, *, bucket: str, stale_prefixes: list[str]
+) -> int:
+    """Purge sélectivement les sous-répertoires `seed/{prefix}/` listés par `stale_prefixes`
+    (capturés par `snapshot_stale_seed_photo_prefixes` **avant** le run courant) — jamais un
+    `delete_prefix("seed/")` global, qui emporterait aussi les photos que le run courant vient
+    d'écrire.
+
+    À appeler par le code appelant **après** que son propre commit (TRUNCATE + seed) a réussi —
+    jamais depuis `seed_demo` lui-même (correctif revue finale J3 § 🟠 n°6, voir la note dans
+    `seed_demo`). Traitée comme best-effort par les appelants (`app/seed/reset.py`, `app/cli.py`) :
+    un échec ne doit jamais faire échouer le seed/reset lui-même, les fichiers de la veille
+    restant simplement orphelins jusqu'au prochain run réussi."""
+    return sum(
+        storage.delete_prefix(bucket=bucket, prefix=f"{_PHOTO_STORAGE_PREFIX}/{stale}/")
+        for stale in stale_prefixes
+    )
+
+
 def seed_demo(
     db: Session,
     *,
@@ -1048,10 +1083,17 @@ def seed_demo(
     storage = storage or get_storage_backend()
     settings = get_settings()
     bucket = settings.supabase_bucket
-    # Idempotence sur disque, pas seulement en base : purge les photos du run précédent avant
-    # d'en écrire de nouvelles (jamais le préfixe `runtime/`, réservé aux uploads réels et purgé
-    # séparément par `app/seed/reset.py` après le seed).
-    storage.delete_prefix(bucket=bucket, prefix=f"{_PHOTO_STORAGE_PREFIX}/")
+    # Idempotence sur disque, pas seulement en base : les nouvelles photos sont écrites sous des
+    # clés `uuid4()` (aucune collision possible avec le run précédent), donc PAS de purge ici.
+    # Correctif revue finale J3 § 🟠 n°6 : purger le préfixe `seed/` en tout début de fonction
+    # cassait l'atomicité gagnée par `app/seed/reset.py` (TRUNCATE + seed dans la MÊME
+    # transaction) — un échec de seed après cette ligne annulait le TRUNCATE en base (rollback)
+    # mais pas la suppression déjà faite sur disque : la démo publique se serait retrouvée avec
+    # les 583 lignes `photo` de la veille pointant vers des fichiers déjà supprimés (vignettes
+    # cassées, 404 silencieux, sans aucune erreur applicative). La purge des anciennes clés se
+    # fait désormais APRÈS le commit, côté appelant (`purge_stale_seed_photos`, appelée par
+    # `app/seed/reset.py::run_demo_reset` et `app/cli.py::seed`), au même titre et pour la même
+    # raison que la purge du préfixe `runtime/`.
 
     checklist_template = _get_default_checklist_template(db)
     checklist_items = list(
@@ -1195,7 +1237,14 @@ def seed_demo(
 
         created_vehicles += 1
 
-    _force_at_least_one_negative_margin(db, rng, negative_margin_candidates, administrateur)
+    # Correctif revue finale J3 § 🟠 n°5 : la valeur de retour (True si une ligne `VehicleCost`
+    # a réellement été insérée) était jetée — `created_vehicle_costs` ne comptait donc jamais
+    # cette ligne, alors qu'elle existe bien en base. `rows_created["vehicle_costs"]` est la
+    # seule trace d'observabilité du cron nocturne en production : elle doit refléter le compte
+    # réel.
+    created_vehicle_costs += int(
+        _force_at_least_one_negative_margin(db, rng, negative_margin_candidates, administrateur)
+    )
     _calibrate_dedup_demo_vehicle(db, companies, today, operatrice)
 
     db.flush()

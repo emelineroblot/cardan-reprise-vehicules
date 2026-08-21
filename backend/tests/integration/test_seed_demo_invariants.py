@@ -20,6 +20,7 @@ from app.models.photo import Photo
 from app.models.vehicle import Vehicle
 from app.seed.demo import seed_demo
 from app.seed.reference import seed_reference
+from app.services.inspections import REQUIRED_PHOTO_ANGLES
 from app.services.storage.service import get_storage_backend
 
 # États qu'un véhicule ne peut structurellement atteindre qu'en étant passé par `AFFECTE`
@@ -96,7 +97,17 @@ def test_no_advanced_vehicle_with_unsubmitted_inspection(db_session: Session) ->
     la vraie application, qu'avec une inspection **soumise** (garde
     `inspection_submitted_with_required_angles`, `app/services/vehicles.py::
     build_transition_context`) — le seed doit reproduire cette contrainte, pas seulement la
-    présence d'une inspection."""
+    présence d'une inspection.
+
+    `outerjoin`, pas `join` (correctif revue finale J3 § 🟠 n°4) : un `join` interne exclut de la
+    requête tout véhicule avancé **sans aucune** inspection — exactement le défaut que ce test
+    est censé surveiller (une régression du seed qui cesserait de créer l'inspection). Avec un
+    `join`, un tel véhicule ne produit aucune ligne et le test reste vert à tort ; avec
+    `outerjoin` + `Inspection.id.is_(None)`, il apparaît comme `submitted_at=None` et fait
+    échouer le test. Vérifié par mutation lors de l'écriture de ce correctif : un véhicule
+    `REFUSE` sans inspection fait bien échouer ce test (`outerjoin`) alors qu'il passait à tort
+    avec l'ancien `join` — voir aussi le test voisin `test_no_controle_en_cours_vehicle_without_
+    inspection`, qui utilisait déjà `outerjoin` et n'avait pas ce trou."""
     _seed(db_session)
 
     advanced_states = (
@@ -108,11 +119,61 @@ def test_no_advanced_vehicle_with_unsubmitted_inspection(db_session: Session) ->
     )
     offenders = db_session.execute(
         select(Vehicle.reference, Inspection.submitted_at)
-        .join(Inspection, Inspection.vehicle_id == Vehicle.id)
-        .where(Vehicle.state.in_(advanced_states), Inspection.submitted_at.is_(None))
+        .outerjoin(Inspection, Inspection.vehicle_id == Vehicle.id)
+        .where(
+            Vehicle.state.in_(advanced_states),
+            (Inspection.id.is_(None)) | (Inspection.submitted_at.is_(None)),
+        )
     ).all()
 
-    assert offenders == [], f"inspection(s) non soumise(s) sur véhicule avancé : {offenders}"
+    assert offenders == [], (
+        f"véhicule(s) avancé(s) sans inspection soumise (absente ou non soumise) : {offenders}"
+    )
+
+
+def test_every_submitted_inspection_has_all_required_angles(db_session: Session) -> None:
+    """Le seed prétend reproduire la garde de production `inspection_submitted_with_required_
+    angles` (`demo.py:593-601`) : une inspection soumise ne devrait jamais l'être avec des angles
+    de contrôle manquants ou en doublon. Rien ne le verrouillait jusqu'ici (revue finale J3 §
+    🟠 n°4) — une inspection soumise avec 3 angles au lieu de 12 restait verte partout."""
+    _seed(db_session)
+
+    rows = db_session.execute(
+        select(Inspection.id, Photo.angle)
+        .join(Photo, Photo.inspection_id == Inspection.id)
+        .where(Inspection.submitted_at.is_not(None), Photo.phase == "controle")
+    ).all()
+
+    angles_by_inspection: dict = {}
+    for inspection_id, angle in rows:
+        angles_by_inspection.setdefault(inspection_id, []).append(angle)
+
+    submitted_ids = set(
+        db_session.execute(
+            select(Inspection.id).where(Inspection.submitted_at.is_not(None))
+        ).scalars()
+    )
+    # Toute inspection soumise doit apparaître dans `angles_by_inspection`, sans quoi elle n'a
+    # aucune photo de contrôle — la même classe de trou que le test précédent (absence = vert à
+    # tort si on ne le vérifie pas explicitement).
+    assert submitted_ids == set(angles_by_inspection), (
+        "inspection(s) soumise(s) sans aucune photo de contrôle : "
+        f"{submitted_ids - set(angles_by_inspection)}"
+    )
+
+    required = {angle.value for angle in REQUIRED_PHOTO_ANGLES}
+    # `len(angles) != len(required)` attrape un doublon (deux photos du même angle) qu'une
+    # simple comparaison d'ensembles laisserait passer ; `set(angles) != required` attrape un
+    # angle manquant ou hors liste.
+    wrong = {
+        inspection_id: angles
+        for inspection_id, angles in angles_by_inspection.items()
+        if len(angles) != len(required) or set(angles) != required
+    }
+    assert wrong == {}, (
+        f"inspection(s) soumise(s) sans exactement les {len(required)} angles imposés, "
+        f"chacun une seule fois (angle manquant, en trop, ou dupliqué) : {wrong}"
+    )
 
 
 def test_every_photo_row_has_a_real_readable_file(db_session: Session) -> None:

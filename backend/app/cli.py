@@ -7,6 +7,7 @@ from __future__ import annotations
 
 import typer
 
+from app.core.config import get_settings
 from app.db.session import SessionLocal
 from app.seed.reference import seed_reference
 
@@ -26,10 +27,23 @@ def seed(
             db.commit()
             typer.echo(f"Référentiel chargé : {result}")
         elif profile == "demo":
-            from app.seed.demo import seed_demo
+            from app.seed.demo import (
+                purge_stale_seed_photos,
+                seed_demo,
+                snapshot_stale_seed_photo_prefixes,
+            )
+            from app.services.storage.service import get_storage_backend
 
-            result = seed_demo(db, force=force)
+            storage = get_storage_backend()
+            bucket = get_settings().supabase_bucket
+            # Capturée AVANT seed_demo, purgée APRÈS le commit ci-dessous — même raison et même
+            # mécanisme qu'`app/seed/reset.py::run_demo_reset` (voir la docstring de
+            # `snapshot_stale_seed_photo_prefixes`/`purge_stale_seed_photos` : un `delete_prefix`
+            # global emporterait aussi les photos que ce run vient d'écrire).
+            stale_seed_prefixes = snapshot_stale_seed_photo_prefixes(storage, bucket=bucket)
+            result = seed_demo(db, force=force, storage=storage)
             db.commit()
+            purge_stale_seed_photos(storage, bucket=bucket, stale_prefixes=stale_seed_prefixes)
             typer.echo(f"Jeu de démo chargé : {result}")
         else:
             typer.echo(f"Profil inconnu : {profile}", err=True)

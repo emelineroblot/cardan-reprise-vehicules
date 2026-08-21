@@ -52,6 +52,11 @@ main
   `/api/backend/v1/photos/file/{bucket}/{key}` — le navigateur n'appelle jamais le backend en
   direct (rewrite Next, § Déploiement) et n'a jamais à reconstruire ce préfixe lui-même. Piège
   corrigé avant le premier écran J3 affichant une photo — voir `docs/wiki/pieges-projet.md`.
+  `PhotoStorage` porte aussi `list_top_level(bucket, prefix)` (ajouté post-J3, revue finale § 🟠
+  n°6) — liste les segments immédiatement sous un préfixe sans lire d'octet, utilisé par le reset
+  nocturne pour purger sélectivement la génération de photos `seed/` précédente sans jamais
+  toucher à celle que le run courant vient d'écrire. Toute future implémentation objet (Supabase)
+  doit l'implémenter aussi.
 - **Notifications (J2)** : persistées en base (`notification`, chemin nominal, aucune clé
   requise) ; web push réel optionnel, activé uniquement si `VAPID_PUBLIC_KEY` et
   `VAPID_PRIVATE_KEY` sont toutes deux configurées (`backend/app/services/push.py`). Son
@@ -93,7 +98,13 @@ main
 - `backend/vercel.json` déclare un cron **quotidien** `0 3 * * *` sur
   `POST /api/v1/admin/demo-reset` : `TRUNCATE` des tables opérationnelles (liste en dur) +
   reseed (`reference` puis `demo`) + rafraîchissement des marts analytics. Authentifié par
-  `Authorization: Bearer $CRON_SECRET`, comparé en temps constant côté backend.
+  `Authorization: Bearer $CRON_SECRET`, comparé en temps constant côté backend. La purge des
+  photos de démo (`seed/`) s'exécute **après** le commit du `TRUNCATE`+seed, jamais avant : un
+  échec de seed laisse alors la base **et** le disque dans l'état de la veille (photos incluses),
+  jamais l'un désynchronisé de l'autre. Purge sélective par génération (`app/seed/demo.py::
+  snapshot_stale_seed_photo_prefixes`/`purge_stale_seed_photos`), pas un simple déplacement du
+  `delete_prefix` — un `delete_prefix("seed/")` global après le commit effacerait aussi les
+  photos que le run courant vient d'écrire.
 
 ## Règles propres au projet
 

@@ -25,9 +25,10 @@ import {
 
 /**
  * Sélectionne les véhicules à représenter dans le graphique de marge : exclut `has_marge =
- * false` (valeur de revente absente — jamais affichée comme une marge nulle) et retient les
- * `limit` écarts les plus significatifs (positifs ET négatifs), triés par valeur absolue
- * décroissante. Les marges négatives ne sont ni exclues ni écrêtées.
+ * false` (véhicule jamais acheté — pas de `prix_achat_negocie` — OU sans valeur de revente
+ * estimée ; dans les deux cas la marge n'a pas de sens et n'est jamais affichée comme une
+ * marge nulle) et retient les `limit` écarts les plus significatifs (positifs ET négatifs),
+ * triés par valeur absolue décroissante. Les marges négatives ne sont ni exclues ni écrêtées.
  */
 export function selectTopMarge(rows: VehiculeMarge[], limit = 12): VehiculeMarge[] {
   return rows
@@ -46,9 +47,10 @@ export function buildMargeChartData(rows: VehiculeMarge[], limit = 12): Divergin
   }));
 }
 
-/** Nombre de véhicules exclus du graphique faute de valeur de revente estimée — affiché en
- * complément, jamais silencieusement absorbé dans un « 0 ». */
-export function countMissingMarge(rows: VehiculeMarge[]): number {
+/** Nombre de véhicules sans marge calculable (`has_marge = false` : véhicule jamais acheté, ou
+ * acheté mais sans valeur de revente estimée) — exclus du graphique, affichés en complément,
+ * jamais silencieusement absorbés dans un « 0 ». */
+export function countWithoutMarge(rows: VehiculeMarge[]): number {
   return rows.filter((r) => !r.has_marge).length;
 }
 

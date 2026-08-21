@@ -71,3 +71,9 @@ class LocalDiskStorage(PhotoStorage):
         count = sum(1 for p in target.rglob("*") if p.is_file())
         shutil.rmtree(target, ignore_errors=True)
         return count
+
+    def list_top_level(self, *, bucket: str, prefix: str) -> list[str]:
+        target = self._safe_path(bucket=bucket, key=prefix)
+        if not target.is_dir():
+            return []
+        return sorted(p.name for p in target.iterdir() if p.is_dir())

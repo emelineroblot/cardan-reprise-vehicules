@@ -5,7 +5,7 @@ import {
   buildPipelineEtatChartData,
   buildRefusSeries,
   buildTravauxSeries,
-  countMissingMarge,
+  countWithoutMarge,
   selectTopMarge,
 } from "@/lib/dashboard/prepare";
 import type { CycleTemps, PipelineEtat, Refus, Travaux, VehiculeMarge } from "@/lib/api/types";
@@ -34,14 +34,29 @@ function marge(overrides: Partial<VehiculeMarge>): VehiculeMarge {
 }
 
 describe("selectTopMarge / buildMargeChartData", () => {
-  it("exclut les véhicules sans valeur de revente estimée (has_marge = false), jamais affichés comme une marge à 0", () => {
+  it("exclut les véhicules sans marge calculable (has_marge = false), jamais affichés comme une marge à 0", () => {
     const rows = [
       marge({ vehicle_id: "a", marge_cents: 10000, has_marge: true }),
       marge({ vehicle_id: "b", marge_cents: null, marge_pct: null, has_marge: false }),
     ];
     const selected = selectTopMarge(rows);
     expect(selected.map((r) => r.vehicle_id)).toEqual(["a"]);
-    expect(countMissingMarge(rows)).toBe(1);
+    expect(countWithoutMarge(rows)).toBe(1);
+  });
+
+  it("compte comme sans marge calculable un véhicule ayant une valeur de revente mais jamais acheté (has_marge = false malgré valeur_revente_estimee_cents non nul)", () => {
+    const rows = [
+      marge({
+        vehicle_id: "never-purchased",
+        prix_achat_negocie_cents: null,
+        valeur_revente_estimee_cents: 600000,
+        marge_cents: null,
+        marge_pct: null,
+        has_marge: false,
+      }),
+    ];
+    expect(selectTopMarge(rows)).toHaveLength(0);
+    expect(countWithoutMarge(rows)).toBe(1);
   });
 
   it("conserve les marges négatives telles quelles, sans écrêtage à 0", () => {
@@ -69,7 +84,7 @@ describe("selectTopMarge / buildMargeChartData", () => {
   it("ne renvoie rien si toutes les lignes sont sans marge", () => {
     const rows = [marge({ vehicle_id: "a", marge_cents: null, has_marge: false })];
     expect(buildMargeChartData(rows)).toHaveLength(0);
-    expect(countMissingMarge(rows)).toBe(1);
+    expect(countWithoutMarge(rows)).toBe(1);
   });
 });
 

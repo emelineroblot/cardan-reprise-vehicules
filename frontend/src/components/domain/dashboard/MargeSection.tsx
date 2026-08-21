@@ -16,7 +16,7 @@ import {
   SelectValue,
 } from "@/components/ui/select";
 import { useMarge, type MargeFilters } from "@/lib/api/hooks/useAnalytics";
-import { buildMargeChartData, countMissingMarge } from "@/lib/dashboard/prepare";
+import { buildMargeChartData, countWithoutMarge } from "@/lib/dashboard/prepare";
 import { formatDate, formatMoneyCents, formatPercentagePoints } from "@/lib/format";
 import { VEHICLE_STATE_LABELS, VEHICLE_STATES, type VehicleState, type VehiculeMarge } from "@/lib/api/types";
 import { cn } from "@/lib/utils";
@@ -36,7 +36,7 @@ export function MargeSection() {
 
   const marge = useMarge({ state, sort });
   const rows = marge.data ?? [];
-  const missing = countMissingMarge(rows);
+  const missing = countWithoutMarge(rows);
   const chartData = buildMargeChartData(rows);
 
   const currentSort: DataTableSort | null = sort
@@ -115,7 +115,7 @@ export function MargeSection() {
     <ChartCard
       id="chart-marge"
       title="Marge par véhicule"
-      description="Coûts d'atelier réels inclus — jamais l'estimé. Une valeur de revente absente n'est jamais confondue avec une marge nulle."
+      description="Coûts d'atelier réels inclus — jamais l'estimé. La marge n'est calculée que pour un véhicule réellement acheté ; une marge non calculable n'est jamais confondue avec une marge nulle."
       legend={<ChartLegend items={[{ color: VIZ_DIVERGING.positive, label: "Positive" }, { color: VIZ_DIVERGING.negative, label: "Négative" }]} />}
       isLoading={marge.isLoading}
       error={marge.error}
@@ -129,12 +129,13 @@ export function MargeSection() {
             <DivergingBarChart data={chartData} />
           ) : (
             <p className="py-6 text-center text-sm text-muted-foreground">
-              Aucun véhicule avec une valeur de revente estimée pour ce filtre.
+              Aucun véhicule avec une marge calculable pour ce filtre.
             </p>
           )}
           {missing > 0 ? (
             <p className="text-xs text-muted-foreground">
-              {missing} véhicule{missing > 1 ? "s" : ""} sans valeur de revente estimée, exclu
+              {missing} véhicule{missing > 1 ? "s" : ""} sans marge calculable (pas encore
+              acheté{missing > 1 ? "s" : ""}, ou sans valeur de revente estimée), exclu
               {missing > 1 ? "s" : ""} du graphique (visible{missing > 1 ? "s" : ""} dans le tableau, marge « — »).
             </p>
           ) : null}
