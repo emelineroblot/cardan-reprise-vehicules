@@ -1,6 +1,6 @@
 ---
 type: architecture
-maj: 2026-08-20
+maj: 2026-08-21
 ---
 
 # Décisions d'architecture
@@ -494,3 +494,146 @@ refusées en J2 et s'ouvriront en J3 par ajout, pas par révision.
   mise en cadre plus fine mais dépend des permissions et des particularités de chaque navigateur
   mobile ; la capture déléguée à l'application caméra du système est robuste sur des appareils non
   maîtrisés à l'avance — exactement le contexte d'une démonstration.
+
+## Atelier — les ordres de travaux naissent d'une transition, et vivent sur leur propre automate
+*Décidé le 2026-08-21 — run `pilotage-marge` (J3)*
+
+**Décision.** Un `work_order` est créé exclusivement comme **effet** de
+`POST /vehicles/{id}/transitions` vers `TRAVAUX_REQUIS` (payload `work_orders`, liste non vide) —
+il n'existe aucun endpoint de création. Son cycle de vie propre
+(`demande → en_cours|annule`, `en_cours → termine|annule`) est un **mini-automate séparé**, table
+de données Python dans `services/work_orders.py`, piloté par `POST /work-orders/{id}/state`. La
+garde « clos ⇒ au moins une ligne de coût » s'applique à l'ordre ; la transition véhicule
+`TRAVAUX_EN_COURS → TRAVAUX_TERMINES` vérifie, elle, que **tous** les ordres du véhicule sont clos
+**avec** une ligne. `work_order_line.montant_cents` est une colonne `GENERATED` côté base, jamais
+calculée en Python ni côté client.
+
+**Pourquoi.** Prolonge le principe posé en J1 pour `mission` : un seul point d'entrée décide quand
+un véhicule entre en travaux, donc aucune divergence possible entre l'état du véhicule et celui de
+ses ordres. *Écarté* : un `POST /vehicles/{id}/work-orders` dédié (deux responsabilités concurrentes
+pour la même décision) ; généraliser `state_machine.py` à plusieurs entités (sur-ingénierie pour
+deux transitions utiles, sans rôle ni contexte propres).
+
+**Conséquences.** Le front n'a **rien à dériver** pour ce sous-automate : aucun
+`GET /work-orders/{id}/transitions` n'existe, la table de transitions est donc recopiée côté client
+(`lib/workOrders/automate.ts`) — seule dérogation assumée à la règle « les actions viennent de
+l'API ». Le serveur reste l'arbitre (`409`). La garde « clos ⇒ ≥ 1 ligne » vaut aussi pour
+`annule` : annuler un ordre créé par erreur est un cul-de-sac, voir
+[pieges-projet.md](pieges-projet.md).
+
+## Marge — la formule est figée depuis J1, le périmètre est la vraie décision
+*Décidé le 2026-08-21 — run `pilotage-marge` (J3)*
+
+**Décision.** `marge_cents = valeur_revente_estimee − prix_achat_negocie − frais_transport −
+Σ vehicle_cost − Σ work_order_line.montant_cents` (coûts d'atelier **réels**, jamais l'estimé), et
+`has_marge` est la **conjonction** « valeur de revente renseignée **et** prix d'achat renseigné ».
+Les deux `CASE` renvoient `NULL` — jamais `0` — dès que l'une manque ; l'interface affiche « — » et
+ne recalcule rien. Une marge négative traverse toute la chaîne sans écrêtage.
+
+**Pourquoi.** La formule était figée et vérifiée au centime. Le défaut était ailleurs : un
+`COALESCE(prix_achat, 0)` faisait entrer dans l'indicateur 59 véhicules **jamais achetés**,
+ressortis à ~99 % de marge, et la tuile affichait 12 264 € au lieu de 2 583 €. Un modèle peut être
+parfaitement cohérent avec lui-même et parfaitement faux quand son périmètre l'est. *Écarté* :
+conserver une « marge prévisionnelle » sur les véhicules non achetés en restreignant seulement les
+tuiles — deux notions de marge dans le même mart, et un écran qui aurait dû expliquer laquelle il
+montre.
+
+**Conséquences.** Le périmètre se teste **séparément** de l'arithmétique, et le test asserte que le
+jeu de données contient réellement le cas limite (`checked_null_no_prix_achat > 0`), sinon il serait
+vert par absence de cas. Tout libellé d'écran qui explique l'exclusion doit citer les deux causes :
+la légende a survécu au correctif et affirmait le contraire du tableau situé dans la même carte.
+
+## Kanban opérationnel et pipeline analytique — deux lectures volontairement distinctes
+*Décidé le 2026-08-21 — run `pilotage-marge` (J3)*
+
+**Décision.** `GET /vehicles/pipeline-counts` (Kanban) lit `vehicle` en direct et renvoie
+**toujours les 11 états**, même à zéro. `GET /analytics/pipeline-etat` (tableau de bord) lit le
+mart, à la fraîcheur du dernier `refresh`. Les deux ne partagent aucune clé de cache côté client.
+
+**Pourquoi.** Le Kanban est un écran de **manipulation** : déplacer une carte puis la voir revenir
+dans son ancienne colonne jusqu'au prochain refresh serait un bug perçu. Le tableau de bord est un
+écran de **pilotage** : sa valeur de démonstration tient précisément à ce que la fraîcheur y soit
+visible et assumée (« indicateurs à jour il y a 4 min »).
+
+**Conséquences.** Deux endpoints qui se ressemblent — un futur excès de DRY les fusionnerait et
+réintroduirait la latence dans le Kanban. Le bouton « Actualiser les indicateurs » est le seul
+moyen de faire apparaître un véhicule tout juste créé dans le tableau de bord ; c'est volontaire et
+exercé par le parcours de bout en bout.
+
+## Cloisonnement financier — la barrière est au contenu de la réponse, pas seulement à la ressource
+*Décidé le 2026-08-21 — run `pilotage-marge` (J3)*
+
+**Décision.** Deux traitements distincts selon la nature du besoin. (1) `prix_achat_negocie_cents`,
+`valeur_revente_estimee_cents` et `frais_transport_cents` sont **rédigés** (mis à `None` après
+construction explicite du schéma) pour tout rôle hors `{operatrice, administrateur}`, sur les trois
+endpoints qui sérialisent un véhicule — liste, détail, réponse de transition. (2) Les ordres de
+travaux et les coûts passent d'« authentifié » à `require_roles("atelier", "operatrice",
+"administrateur")` : un `403` avant même le scope. Le périmètre de l'atelier (`scope_vehicles`) est
+par ailleurs élargi à l'état `TRAVAUX_EN_COURS`, en plus des véhicules portant un ordre non clos.
+
+**Pourquoi.** Le contrôle portait sur l'**accès à la ressource**, jamais sur le **contenu** de la
+réponse : un chauffeur recevait les ingrédients de la marge sur 70 véhicules, et masquer les blocs
+côté interface ne protège rien contre un appel direct. Rédiger plutôt que dupliquer le schéma :
+chauffeur et atelier ont un besoin légitime de tous les **autres** champs de la fiche ; un second
+schéma pour trois champs en moins aurait doublé la surface à maintenir. À l'inverse, le chauffeur
+n'a aucun besoin de la ressource « ordre de travaux » — un `403` y est le traitement correct.
+L'élargissement du périmètre atelier corrige un cul-de-sac réel : en clôturant son dernier ordre,
+l'atelier sortait de son propre périmètre **avant** d'avoir pu déclencher la transition véhicule
+que cette clôture venait de débloquer.
+
+**Conséquences.** `frais_transport_cents` devient `int | None` au contrat — le front doit passer par
+un formateur défensif, sinon « interdit » s'affiche comme `0 €`. Les tests de cloisonnement lisent
+le **corps** de la réponse, et son texte brut, jamais le seul code de statut, et portent un
+contraste pour détecter un correctif trop large. Une divergence reste ouverte sur les coûts hors
+atelier (backend plus permissif que l'écran) : voir [pieges-projet.md](pieges-projet.md).
+
+## Jeu de démonstration — le seed rejoue les effets de l'application, il ne pose pas des états
+*Décidé le 2026-08-21 — run `pilotage-marge` (J3)*
+
+**Décision.** Pour chaque véhicule, le seed reconstitue la **frise complète** de son historique
+d'états (horodatée, rétrodatée jusqu'à 90 jours) puis rejoue les effets que chaque étape aurait
+produits dans l'application réelle : `mission`, `notification`, `inspection` et ses réponses de
+checklist, `photo` (12 angles imposés, avant/après travaux — de vrais fichiers PNG générés en
+mémoire), `work_order`, `work_order_line`, `vehicle_cost`. Les tirages terrain utilisent un flux
+`random.Random` **dédié**. Au moins une marge négative est garantie **par construction**, sur un
+véhicule `ACHAT_VALIDE`, calibrée à l'ordre de grandeur des marges positives. Le véhicule vedette du
+dédoublonnage est fixé en dur après la boucle, hors de tout tirage aléatoire.
+
+**Pourquoi.** Un jeu de démonstration qui pose des états sans leurs effets fabrique des situations
+que la production ne peut pas produire : 52 véhicules affectés et **zéro mission**, soit le jalon J2
+entier invisible en démonstration — non détecté pendant trois jalons, parce qu'aucun test ne
+regardait la cohérence du jeu de démo lui-même. Le flux aléatoire séparé est la contrainte non
+négociable : un seul tirage terrain sur le flux principal décalerait tous les véhicules suivants et
+déplacerait les chiffres du tableau de bord. Laisser la marge négative au hasard du tirage rendrait
+un critère d'acceptation non déterministe malgré la graine fixe.
+
+**Conséquences.** Cinq tests d'invariants (`test_seed_demo_invariants.py`) traitent le jeu de démo
+comme un livrable : aucun véhicule post-`AFFECTE` sans mission, aucune inspection soumise sans ses
+12 angles, aucune ligne `photo` sans fichier réellement lisible. Les 9 chiffres du tableau de bord
+sont figés dans `test_demo_reset.py` — les déplacer est une décision, pas un ajustement. La purge
+disque des photos de seed est **sélective par génération** (photographie des préfixes avant le seed,
+purge après le commit) : voir [pieges-projet.md](pieges-projet.md).
+
+## Décisions de second rang — J3
+*Décidé le 2026-08-21 — run `pilotage-marge` (J3)*
+
+- **L'atelier est une section de la fiche véhicule, pas un écran dédié.** Le contrat n'expose aucun
+  `GET /work-orders` global, et `scope_vehicles` limite déjà l'atelier à ses véhicules : un écran
+  séparé aurait dupliqué `/vehicules` avec un filtre équivalent.
+- **Kanban sans glisser-déposer.** Déplacer une carte reste un `POST /vehicles/{id}/transitions`
+  ordinaire, déclenché depuis la fiche. Un drag & drop natif aurait dupliqué la logique de gardes
+  déjà dérivée de l'API, avec une parité clavier et lecteur d'écran coûteuse, pour un gain
+  d'ergonomie marginal sur 90 véhicules. Chaque colonne affiche un aperçu de six véhicules — ce que
+  « lisible d'un coup d'œil » demandait réellement.
+- **Les photos d'atelier ne passent pas par la file hors ligne.** Le moteur de J2 répond à un besoin
+  précis (contrôle en extérieur, réseau incertain) ; l'atelier travaille connecté. Les fonctions
+  pures de compression et de checksum sont réutilisées telles quelles, la machinerie de file ne
+  l'est pas.
+- **Les trois graphiques à barres sont en HTML/CSS, pas en SVG.** Un `viewBox` étroit combiné à
+  `preserveAspectRatio="none"` rendait les échelles x et y indépendantes : tout le contenu
+  vectoriel, texte compris, était étiré d'un facteur ~3,4 sur un écran de bureau. Des barres n'ont
+  pas besoin d'un repère vectoriel ; seul le graphique en lignes reste en SVG, avec un
+  `aspect-ratio` CSS identique à son `viewBox` et ses libellés sortis en calque HTML.
+- **Le tableau est le jumeau accessible de chaque graphique**, pas une vue secondaire : aucune
+  valeur n'est lisible uniquement au survol, et un écart estimé/réel se lit en icône **et** en
+  libellé, jamais par la couleur seule.

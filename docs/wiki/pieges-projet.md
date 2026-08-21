@@ -58,10 +58,14 @@ vivent dans la skill globale `stack-pitfalls`, pas ici.
   sur une fiche dont le dédoublonnage n'a jamais été arbitré, contrairement au tableau des
   transitions. Corriger exige de faire transiter l'état d'arbitrage dans le `TransitionContext`.
   *(2026-08-20)*
-- **Dette assumée, à reprendre avant J3 :** `open_work_orders` sélectionne **tous** les work orders
-  et non les seuls ouverts, et `all_work_orders_closed_with_cost_line` ne vérifie jamais la
-  présence d'une ligne de coût. Sans effet en J1 (aucun work order n'existe), mais le nom de la
-  variable et celui du champ mentent tous les deux. *(2026-08-20)*
+- ✅ **Corrigé (2026-08-21) — était :** `open_work_orders` sélectionnait **tous** les work orders et
+  non les seuls ouverts, et `all_work_orders_closed_with_cost_line` ne vérifiait jamais la présence
+  d'une ligne de coût : deux noms qui mentaient, sans effet tant qu'aucun work order n'existait
+  (J1/J2). `build_transition_context` (`app/services/vehicles.py`) vérifie désormais réellement
+  `state ∈ (termine, annule)` **et** `work_orders_service.has_cost_line(...)` pour chaque ordre.
+  Leçon conservée : une garde dont l'objet n'existe pas encore ne peut être ni vraie ni fausse —
+  elle est simplement **non exercée**, et le nom de sa variable est alors la seule documentation
+  disponible. Relire ces gardes au jalon qui matérialise leur objet, pas avant. *(2026-08-21)*
 
 ## Exploitation
 
@@ -80,20 +84,18 @@ vivent dans la skill globale `stack-pitfalls`, pas ici.
 
 ## Module terrain / PWA (J2)
 
-> 🔴 **À LIRE AVANT D'OUVRIR J3** — la première puce ci-dessous est une bombe à retardement posée en
-> J2 : elle n'a aucun effet aujourd'hui et casse le premier écran J3 qui affiche une photo.
-
-- 🔴 **AVANT LE PREMIER ÉCRAN PHOTO DE J3 : `PhotoRead.url` est inutilisable tel quel depuis le
-  navigateur.** `read_url` du stockage local renvoie `/api/v1/photos/file/{bucket}/{key}`, alors que
-  le navigateur passe **obligatoirement** par le proxy Next `/api/backend/v1/...` (le front n'appelle
-  jamais le backend en direct, cf. architecture § « Déploiement »). Aucun composant ne consomme
-  encore ce champ — `sync.ts` le stocke sans jamais le lire — donc rien ne casse aujourd'hui et
-  aucun test ne le verra. **Le premier écran J3 qui affichera une photo avant/après prendra un
-  404 silencieux (image cassée, aucune erreur applicative).** À trancher **avant** d'écrire cet
-  écran, pas en le déboguant : soit `read_url` renvoie une URL préfixée pour le navigateur, soit le
-  front reçoit la règle de préfixage — mais jamais en la codant en dur côté client, ce qui
-  recasserait à la bascule vers un stockage objet (les URL signées, elles, sont absolues).
-  *(2026-08-20)*
+- ✅ **Corrigé (2026-08-21) — `PhotoRead.url` est désormais utilisable tel quel dans un `<img src>`,
+  ne jamais reconstruire de préfixe côté front.** Était : `read_url` du stockage local renvoyait
+  `/api/v1/photos/file/{bucket}/{key}`, une route **backend**, alors que le navigateur passe
+  obligatoirement par le proxy Next `/api/backend/v1/...` (cf. architecture § « Déploiement »).
+  Aucun composant ne consommait ce champ en J2, donc rien ne cassait et aucun test ne le voyait —
+  le premier écran photo de J3 aurait pris un 404 silencieux. Corrigé côté serveur
+  (`app/services/storage/local.py`, préfixe constant `_BROWSER_PREFIX`), jamais côté client : un
+  préfixe codé en dur dans le front recasserait à la bascule vers un stockage objet, dont les URL
+  signées sont absolues. Deux leçons conservées : un champ que **personne ne consomme encore** ne
+  peut pas être validé par la suite de tests, et c'est un test **unitaire** — pas d'intégration —
+  qui a attrapé le double `/api` de la première version, l'intégration parlant au backend sans
+  passer par le rewrite Next. *(2026-08-21)*
 - **Le plafond de 30 photos est compté par VÉHICULE toutes phases confondues côté serveur, alors que
   l'écran de contrôle ne compte que l'inspection courante** — un chauffeur peut donc recevoir un
   `409 photo_quota_exceeded` sans que l'interface l'ait annoncé (véhicule déjà photographié lors
@@ -158,3 +160,65 @@ vivent dans la skill globale `stack-pitfalls`, pas ici.
   idempotentes sur disque). Écrire une photo de seed sous `runtime/` la ferait disparaître dès la
   fin du reset qui vient de la créer — le seed doit toujours écrire sous `seed/`, jamais l'inverse.
   *(2026-08-21)*
+
+## Pilotage, atelier et couche analytique (J3)
+
+- 🔴 **`has_marge` est une conjonction : valeur de revente estimée **et** prix d'achat négocié
+  renseignés.** Ne jamais réintroduire un `COALESCE(prix_achat_negocie_cents, 0)` dans
+  `mart_vehicule_marge.sql` : un véhicule jamais acheté ressort alors avec ~99 % de marge, et la
+  tuile « Marge moyenne » est faussée d'un facteur 4,5 (12 264 € affichés contre 2 583 € réels).
+  Corollaire de rédaction : tout texte d'écran qui explique l'exclusion doit citer **les deux**
+  causes (pas encore acheté, ou sans valeur de revente) — sur 67 véhicules exclus, 59 le sont pour
+  la première. *(2026-08-21)*
+- **Le véhicule vedette du dédoublonnage (`VH-2026-000087`, Renault Kangoo, Benard SARL) est
+  calibré en dur après la boucle du seed** (`_calibrate_dedup_demo_vehicle`), hors de tout tirage
+  `rng`. Il l'a payé une fois : la réécriture du seed J3 a décalé sa position dans le flux aléatoire
+  et son kilométrage est passé de 120 279 à 143 783 km, au-delà du seuil d'exclusion dure de
+  5 000 km — `j1-saisie.spec.ts` ne voyait plus aucun candidat. Ne jamais rebrancher ces champs
+  (marque, modèle, énergie, kilométrage, absence de VIN/immat, date de proposition) sur `rng`.
+  *(2026-08-21)*
+- **Le seed terrain tire sur un flux `random.Random` dédié (`terrain_rng`), jamais sur le `rng`
+  principal.** Un seul tirage terrain sur le flux principal décale tous les véhicules suivants et
+  déplace les 9 chiffres du tableau de bord — que
+  `test_demo_reset.py::test_mart_kpi_global_matches_known_reference_values` fige désormais. Un écart
+  sur ce test n'est pas forcément une régression : c'est un **déplacement à documenter**, à trancher
+  avant de mettre les valeurs à jour (une étude de cas cite ces chiffres). *(2026-08-21)*
+- 🔴 **La purge disque des photos de seed se fait par snapshot avant / purge sélective après le
+  commit.** `delete_prefix(prefix="seed/")` supprime tout le sous-arbre : appelé après le commit,
+  il efface la génération que le run vient d'écrire (les clés sont des `uuid4()`, jamais
+  recouvrantes) ; appelé avant, il casse l'atomicité du reset nocturne et laisse la démo publique
+  avec 583 vignettes cassées en cas d'échec du seed. D'où
+  `snapshot_stale_seed_photo_prefixes` (avant `seed_demo`) + `purge_stale_seed_photos` (après le
+  commit). Toute nouvelle implémentation de `PhotoStorage` doit fournir `list_top_level`.
+  *(2026-08-21)*
+- **`GET /vehicles/pipeline-counts` (Kanban, live) et `GET /analytics/pipeline-etat` (dashboard,
+  mart) sont volontairement deux endpoints distincts.** Les fusionner par excès de DRY remettrait
+  le Kanban en retard sur ses propres transitions jusqu'au prochain `refresh`. Leurs clés TanStack
+  Query sont également disjointes côté front, pour qu'aucune invalidation ne traverse. *(2026-08-21)*
+- **Annuler un ordre de travaux exige une ligne de coût, comme le clore.** `demande → annule` est
+  donc un cul-de-sac pour un ordre créé par erreur : l'atelier doit d'abord saisir un coût
+  (éventuellement 0 €) sur des travaux qu'il n'a pas faits. La règle vient du brief (« terminé ou
+  annulé ⇒ au moins une ligne ») — dette assumée, à rouvrir avec le produit, pas en contournant la
+  garde. *(2026-08-21)*
+- **`taux_refus_global` = refusés / tous les véhicules non `ANNULE`**, dossiers encore en cours
+  compris : 18 % affichés là où le ratio sur dossiers tranchés vaut 50 % (16/32). Ce n'est pas
+  faux, c'est ambigu — la tuile est posée à côté d'« Achats validés 16 · Refusés 16 » et la
+  division se fait de tête. Arbitrage éditorial non tranché : renommer la tuile, ou ajouter
+  `nb_decides`/`taux_refus_decides` au mart. *(2026-08-21)*
+- **Divergence non tranchée sur les coûts hors atelier :** l'API les ouvre en lecture à
+  `atelier|operatrice|administrateur`, l'interface ne monte `VehicleCostsPanel` que pour
+  `operatrice|administrateur`. Puisque « le front n'est jamais la barrière », c'est la règle
+  backend qui fait foi — un compte `atelier` lit ces montants en appel direct. Les deux positions
+  se défendent, l'absence de décision non. *(2026-08-21)*
+- **Le périmètre du chauffeur repose sur `assigned_driver_id`, jamais sur une mission active** —
+  contrairement à ce qu'annonce la docstring de `scope_vehicles`. `assigned_driver_id` n'étant
+  jamais purgé à la clôture, un chauffeur voit 70 véhicules, `REFUSE` et `ANNULE` compris. Sans
+  conséquence de confidentialité depuis la rédaction des champs financiers, mais c'est un
+  commentaire faux dans une fonction de sécurité — donc une revue future s'appuiera dessus. À
+  trancher : corriger le commentaire, ou purger l'affectation à la clôture. *(2026-08-21)*
+- **Deux petits défauts connus, sans effet aujourd'hui :** `VehiclePatch.frais_transport_cents`
+  accepte `null` alors que la colonne est `NOT NULL` (un `PATCH {"frais_transport_cents": null}`
+  produit une `IntegrityError`, donc un 500 — antérieur à J3) ; et `get_kpi_global` renvoie `{}`
+  sur un mart vide, ce que `KpiGlobalRead` rejette en `ResponseValidationError` — la branche
+  défensive provoque le plantage qu'elle prétend éviter (cas inatteignable, le mart produisant
+  toujours une ligne). *(2026-08-21)*
