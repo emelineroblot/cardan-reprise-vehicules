@@ -41,22 +41,56 @@ main
   possible au rechargement de l'écran de contrôle après soumission).
 - **Frontend** : Next.js — module terrain en PWA installable (caméra, stockage local, web push)
 - **Base de données** : PostgreSQL managé
-- **Stockage photos (J2)** : abstraction `PhotoStorage` (`backend/app/services/storage/`) —
-  backend **disque local** actif aujourd'hui (`local.py`, aucune clé requise). Le disque local
-  n'est pas utilisable en serverless : un fournisseur de stockage objet devra être choisi **au
-  déploiement**, en implémentant une nouvelle classe et en la branchant dans `service.py`
-  (aucun autre fichier à toucher). Le fournisseur n'est pas arrêté — voir
-  `docs/wiki/architecture.md` § Stockage des photos. Lecture via
-  `GET /api/v1/photos/file/{bucket}/{key}`, authentifiée par cookie et scopée comme les
-  véhicules (`scope_vehicles`).
+- **Stockage photos (J2, préfixe corrigé en J3)** : abstraction `PhotoStorage`
+  (`backend/app/services/storage/`) — backend **disque local** actif aujourd'hui (`local.py`,
+  aucune clé requise). Le disque local n'est pas utilisable en serverless : un fournisseur de
+  stockage objet devra être choisi **au déploiement**, en implémentant une nouvelle classe et en
+  la branchant dans `service.py` (aucun autre fichier à toucher). Le fournisseur n'est pas arrêté
+  — voir `docs/wiki/architecture.md` § Stockage des photos. La route backend réelle est
+  `GET /api/v1/photos/file/{bucket}/{key}` (authentifiée par cookie, scopée comme les véhicules
+  via `scope_vehicles`), mais `PhotoRead.url` renvoyée au front porte le préfixe **navigateur**
+  `/api/backend/v1/photos/file/{bucket}/{key}` — le navigateur n'appelle jamais le backend en
+  direct (rewrite Next, § Déploiement) et n'a jamais à reconstruire ce préfixe lui-même. Piège
+  corrigé avant le premier écran J3 affichant une photo — voir `docs/wiki/pieges-projet.md`.
+  `PhotoStorage` porte aussi `list_top_level(bucket, prefix)` (ajouté post-J3, revue finale § 🟠
+  n°6) — liste les segments immédiatement sous un préfixe sans lire d'octet, utilisé par le reset
+  nocturne pour purger sélectivement la génération de photos `seed/` précédente sans jamais
+  toucher à celle que le run courant vient d'écrire. Toute future implémentation objet (Supabase)
+  doit l'implémenter aussi.
 - **Notifications (J2)** : persistées en base (`notification`, chemin nominal, aucune clé
   requise) ; web push réel optionnel, activé uniquement si `VAPID_PUBLIC_KEY` et
   `VAPID_PRIVATE_KEY` sont toutes deux configurées (`backend/app/services/push.py`). Son
   absence ne dégrade jamais le parcours.
+- **Atelier (J3)** : rôle unique `atelier`, `work_order`/`work_order_line`. La création d'un
+  `work_order` est un effet de `POST /vehicles/{id}/transitions` vers `TRAVAUX_REQUIS` (payload
+  `work_orders: [{type, description, montant_estime_cents?}]`, au moins un élément) — jamais un
+  endpoint de création dédié, même principe que `mission` en J2. `work_order.state`
+  (`demande|en_cours|termine|annule`) est un **mini-automate séparé** de celui du véhicule
+  (`backend/app/services/work_orders.py`), piloté par `POST /work-orders/{id}/state` : un ordre
+  ne peut atteindre `termine`/`annule` que s'il porte déjà au moins une ligne de coût
+  (`POST /work-orders/{id}/lines`). La transition véhicule `TRAVAUX_EN_COURS -> TRAVAUX_TERMINES`
+  vérifie, elle, que **tous** les ordres du véhicule sont clos avec une ligne de coût
+  (`app/services/vehicles.py::build_transition_context`). Photos avant/après travaux : mêmes
+  endpoints que J2 (`POST /vehicles/{id}/photos`), phase `avant_travaux`/`apres_travaux` liée à
+  `work_order_id` au lieu de `inspection_id`.
+- **Coûts hors atelier (J3)** : `vehicle_cost` (transport, carburant, administratif, remise en
+  état externe), `POST/GET /vehicles/{id}/costs`, écriture réservée à `administrateur`.
+- **Pipeline Kanban (J3)** : `GET /vehicles/pipeline-counts` (administrateur) — comptage par état
+  **opérationnel et live** (lecture directe de `vehicle`, jamais un mart), pour l'écran
+  interactif de manipulation du parc. Distinct de `GET /analytics/pipeline-etat`, qui sert le
+  dashboard à la fraîcheur du dernier `refresh`.
 - **Couche analytique** : schéma PostgreSQL dédié `analytics` (vues `stg_*` + vues matérialisées
   `mart_*`), hors Alembic (sauf `analytics.refresh_log`, seule table réelle), reconstruit par
   `backend/app/analytics/runner.py` (`build`/`refresh`) depuis `manifest.yml`. Le dashboard lit
-  les marts, jamais des calculs à la volée dans l'UI.
+  les marts, jamais des calculs à la volée dans l'UI. J3 ajoute 4 vues de staging
+  (`stg_transitions`, `stg_missions`, `stg_travaux`, `stg_couts`) et 6 marts —
+  `mart_vehicule_marge` (marge par véhicule, `marge_cents`/`marge_pct` toujours `NULL`, jamais
+  `0`, quand `has_marge = false`), `mart_cycle_temps` (délai de cycle par étape), `mart_pipeline_
+  etat`, `mart_refus` (`ANNULE` exclu du calcul, `REFUSE` seul y entre), `mart_travaux` (coût
+  moyen réel, uniquement sur les ordres clos) et `mart_kpi_global` (tuiles du dashboard, dépend
+  des 4 marts précédents — ordre de déclaration significatif dans `manifest.yml`). Endpoints de
+  lecture : `GET /analytics/{marge,cycle-temps,pipeline-etat,refus,travaux,kpi-global}`, réservés
+  à `administrateur`.
 - **Hébergement** : Vercel + Postgres managé, offres gratuites, hébergement UE
 
 ## Tâche planifiée (cron)
@@ -64,7 +98,13 @@ main
 - `backend/vercel.json` déclare un cron **quotidien** `0 3 * * *` sur
   `POST /api/v1/admin/demo-reset` : `TRUNCATE` des tables opérationnelles (liste en dur) +
   reseed (`reference` puis `demo`) + rafraîchissement des marts analytics. Authentifié par
-  `Authorization: Bearer $CRON_SECRET`, comparé en temps constant côté backend.
+  `Authorization: Bearer $CRON_SECRET`, comparé en temps constant côté backend. La purge des
+  photos de démo (`seed/`) s'exécute **après** le commit du `TRUNCATE`+seed, jamais avant : un
+  échec de seed laisse alors la base **et** le disque dans l'état de la veille (photos incluses),
+  jamais l'un désynchronisé de l'autre. Purge sélective par génération (`app/seed/demo.py::
+  snapshot_stale_seed_photo_prefixes`/`purge_stale_seed_photos`), pas un simple déplacement du
+  `delete_prefix` — un `delete_prefix("seed/")` global après le commit effacerait aussi les
+  photos que le run courant vient d'écrire.
 
 ## Règles propres au projet
 

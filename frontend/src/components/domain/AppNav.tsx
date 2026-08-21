@@ -2,7 +2,7 @@
 
 import Link from "next/link";
 import { usePathname, useRouter } from "next/navigation";
-import { ClipboardList, LogOut, Menu, PlusCircle, Wrench, X } from "lucide-react";
+import { ClipboardList, Columns3, Gauge, LogOut, Menu, PlusCircle, Wrench, X } from "lucide-react";
 import { useState } from "react";
 import { useAuth } from "@/lib/auth/AuthProvider";
 import { hasRole } from "@/lib/auth/roles";
@@ -36,6 +36,18 @@ const NAV_ITEMS: NavItem[] = [
     label: "Nouvelle fiche d'achat",
     icon: PlusCircle,
     allowed: ["operatrice", "administrateur"],
+  },
+  {
+    href: "/pipeline",
+    label: "Pipeline",
+    icon: Columns3,
+    allowed: ["administrateur"],
+  },
+  {
+    href: "/pilotage",
+    label: "Tableau de bord",
+    icon: Gauge,
+    allowed: ["administrateur"],
   },
 ];
 

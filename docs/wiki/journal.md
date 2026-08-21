@@ -1,12 +1,34 @@
 ---
 type: journal
-maj: 2026-08-20
+maj: 2026-08-21
 ---
 
 # Journal des runs de team
 
 Le plus récent en premier. Une entrée par run : ce qui a été livré, et le seul fait notable
 qui mérite d'être retenu.
+
+## 2026-08-21 — J3 `feature/pilotage-marge`
+
+Livré : l'atelier (ordres de travaux sur mini-automate propre, lignes de coût `GENERATED`, photos
+avant/après), les coûts hors atelier, le Kanban administrateur, la couche analytique du jalon
+(4 vues de staging, 6 marts dont `mart_vehicule_marge`) et le tableau de bord. Deux chantiers non
+prévus s'y sont ajoutés : le cloisonnement financier côté serveur, et un jeu de démonstration qui
+rejoue enfin les effets terrain (70 missions, 48 inspections, 583 photos) — absents depuis J1.
+
+Le fait à retenir : **la formule de marge était juste au centime, et le chiffre affiché était faux
+d'un facteur 4,5.** Un `COALESCE(prix_achat, 0)` faisait entrer dans l'indicateur 59 véhicules
+jamais achetés, à ~99 % de marge. Le test d'exactitude ne pouvait pas le voir : il recalculait
+l'attendu avec la même expression fautive. C'est la quatrième variante d'un défaut qui aura traversé
+les trois jalons — un test écrit à partir du code valide le code, pas le besoin — et ce qui l'a
+trouvé, à chaque fois, c'est le recalcul à la main contre la base réelle et l'appel HTTP sur le
+chemin réel. Second enseignement, découvert en fin de course : la correction littérale d'une revue
+(déplacer la purge des photos après le commit) effaçait les fichiers que le seed venait d'écrire —
+seule l'exécution réelle l'a montré.
+
+Blackboard d'origine : `.agent-team/` (éphémère, écrasé au run suivant).
+Détail : [architecture.md](architecture.md) — voir « Marge », « Cloisonnement financier », « Atelier »,
+« Kanban opérationnel et pipeline analytique » et « Jeu de démonstration ».
 
 ## 2026-08-20 — J2 `feature/pwa-terrain`
 

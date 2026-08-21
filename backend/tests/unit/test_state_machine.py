@@ -35,6 +35,7 @@ def _permissive_context(role: UserRole) -> TransitionContext:
         has_work_order_en_demande=True,
         all_work_orders_closed_with_cost_line=True,
         active_work_orders_count=1,
+        work_orders_payload_present=True,
     )
 
 

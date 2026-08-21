@@ -234,13 +234,20 @@ def test_photo_file_is_scoped_to_assigned_driver(client: TestClient, db_session:
     upload = _upload(client, vehicle_id, inspection_id=inspection_id)
     assert upload.status_code == 201
     photo_url = upload.json()["url"]
+    assert photo_url.startswith("/api/backend/v1/photos/file/")
+    # `url` est la route **navigateur** (le rewrite Next `/api/backend/:path*` -> `BACKEND_ORIGIN
+    # /api/:path*` remplace le segment `/api/backend` par `/api`, jamais appelé en direct par le
+    # backend lui-même) — `TestClient` parle au backend sans ce proxy, donc la requête ci-dessous
+    # cible la route backend réelle en rejouant la même substitution
+    # (docs/wiki/pieges-projet.md § « Module terrain / PWA (J2) »).
+    backend_path = photo_url.replace("/api/backend", "/api", 1)
 
-    own_read = client.get(photo_url)
+    own_read = client.get(backend_path)
     assert own_read.status_code == 200
     assert own_read.content == b"contenu-photo"
 
     login_client(client, other_driver)
-    other_read = client.get(photo_url)
+    other_read = client.get(backend_path)
     assert other_read.status_code == 404
 
 

@@ -21,6 +21,7 @@ from app.models.inspection import Inspection
 from app.models.photo import Photo
 from app.models.user import AppUser
 from app.models.vehicle import Vehicle
+from app.models.work_order import WorkOrder
 from app.services.storage.base import PhotoStorage
 
 # Plafond applicatif par véhicule (plan.md § 3.6 : « CHECK métier à 30 photos par véhicule,
@@ -46,6 +47,7 @@ def create_photo(
     angle: str,
     phase: str,
     inspection_id: UUID | None,
+    work_order_id: UUID | None = None,
     captured_at: datetime,
     checksum_sha256: str,
     width: int,
@@ -55,7 +57,14 @@ def create_photo(
 ) -> tuple[Photo, bool]:
     """Idempotent par `client_uuid` — un rejeu après coupure réseau renvoie la photo déjà reçue
     sans réécrire l'octet (décision C : « un renvoi ne duplique rien »).
-    Renvoie `(photo, created)`."""
+    Renvoie `(photo, created)`.
+
+    Deux familles de photo, mutuellement exclusives (plan.md § 5.1 : `photo.inspection_id` et
+    `photo.work_order_id` sont tous deux nullable) :
+    - `phase = 'controle'` -> rattachée à une `inspection` (parcours J2, inchangé) ;
+    - `phase in ('avant_travaux', 'apres_travaux')` -> rattachée à un `work_order` (atelier, J3,
+      ouverture additive de la colonne posée dès J1 — pas une révision du parcours J2).
+    """
     existing = db.scalar(select(Photo).where(Photo.client_uuid == client_uuid))
     if existing is not None:
         return existing, False
@@ -64,18 +73,18 @@ def create_photo(
         raise ApiError("validation_error", "Angle de photo inconnu.")
     if phase not in {p.value for p in PhotoPhase}:
         raise ApiError("validation_error", "Phase de photo inconnue.")
-    if phase != PhotoPhase.CONTROLE.value:
-        # `avant_travaux`/`apres_travaux` sont liées à un `work_order` — hors périmètre J2
-        # (atelier, J3). Le modèle porte déjà les colonnes nécessaires (plan.md § 5.1) ; ouvrir
-        # ces phases est une extension additive, pas une révision de ce module.
-        raise ApiError("validation_error", "Cette phase n'est pas prise en charge à ce jalon.")
     if content_type not in _ALLOWED_CONTENT_TYPES:
         raise ApiError(
             "validation_error", "Type de fichier non pris en charge (JPEG, PNG ou WEBP attendu)."
         )
 
     inspection: Inspection | None = None
-    if inspection_id is not None:
+    work_order: WorkOrder | None = None
+    if phase == PhotoPhase.CONTROLE.value:
+        if inspection_id is None:
+            raise ApiError(
+                "validation_error", "`inspection_id` est requis pour une photo de contrôle."
+            )
         inspection = db.get(Inspection, inspection_id)
         if inspection is None or inspection.vehicle_id != vehicle.id:
             raise ApiError("not_found", "Inspection introuvable pour ce véhicule.")
@@ -84,7 +93,15 @@ def create_photo(
                 "conflict", "Cette inspection est déjà soumise, elle n'accepte plus de photos."
             )
     else:
-        raise ApiError("validation_error", "`inspection_id` est requis pour une photo de contrôle.")
+        # `avant_travaux` / `apres_travaux` (J3)
+        if work_order_id is None:
+            raise ApiError(
+                "validation_error",
+                "`work_order_id` est requis pour une photo avant/après travaux.",
+            )
+        work_order = db.get(WorkOrder, work_order_id)
+        if work_order is None or work_order.vehicle_id != vehicle.id:
+            raise ApiError("not_found", "Ordre de travaux introuvable pour ce véhicule.")
 
     computed_checksum = hashlib.sha256(content).hexdigest()
     if computed_checksum != checksum_sha256.strip().lower():
@@ -104,7 +121,10 @@ def create_photo(
             details={"limit": MAX_PHOTOS_PER_VEHICLE},
         )
 
-    if angle != PhotoAngle.DEFAUT.value:
+    if inspection is not None and angle != PhotoAngle.DEFAUT.value:
+        # Contrainte d'unicité en base (`uq_photo_inspection_angle_controle`) scopée à
+        # `phase = 'controle'` — sans objet pour `avant_travaux`/`apres_travaux`, où l'angle n'a
+        # pas de sens de parcours imposé (l'atelier documente ce qu'il veut, sans liste fermée).
         duplicate_angle = db.scalar(
             select(Photo).where(
                 Photo.inspection_id == inspection.id,
@@ -130,8 +150,8 @@ def create_photo(
     photo = Photo(
         id=uuid4(),
         vehicle_id=vehicle.id,
-        inspection_id=inspection.id,
-        work_order_id=None,
+        inspection_id=inspection.id if inspection is not None else None,
+        work_order_id=work_order.id if work_order is not None else None,
         angle=angle,
         phase=phase,
         storage_bucket=bucket,

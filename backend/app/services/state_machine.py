@@ -45,6 +45,11 @@ class TransitionContext:
     has_work_order_en_demande: bool
     all_work_orders_closed_with_cost_line: bool
     active_work_orders_count: int
+    # J3 — au moins un `work_order` déclaré dans `payload.work_orders` (garde de payload, comme
+    # `refus_motif`/`driver_id` : jamais évaluée pour la visibilité du bouton, seulement à la
+    # soumission réelle). Défaut `False` — le garde-fou le plus strict : un appelant qui oublie
+    # de le renseigner ne peut jamais assouplir la garde par omission.
+    work_orders_payload_present: bool = False
 
 
 def _always_true(ctx: TransitionContext) -> bool:
@@ -68,6 +73,10 @@ def _guard_rdv_futur(ctx: TransitionContext) -> bool:
 
 def _guard_inspection_ok(ctx: TransitionContext) -> bool:
     return ctx.inspection_submitted_with_required_angles
+
+
+def _guard_inspection_et_work_orders(ctx: TransitionContext) -> bool:
+    return ctx.inspection_submitted_with_required_angles and ctx.work_orders_payload_present
 
 
 def _guard_inspection_et_prix(ctx: TransitionContext) -> bool:
@@ -183,9 +192,10 @@ TRANSITIONS: dict[tuple[VehicleState, VehicleState], Transition] = {
     ),
     (S.CONTROLE_EN_COURS, S.TRAVAUX_REQUIS): Transition(
         _role_chauffeur_affecte_admin,
-        _guard_inspection_ok,
+        _guard_inspection_et_work_orders,
         "Conclusion : travaux requis",
         contextual_guard=_guard_inspection_ok,
+        payload_fields=("work_orders",),
     ),
     (S.CONTROLE_EN_COURS, S.ACHAT_VALIDE): Transition(
         _role_chauffeur_affecte_admin,

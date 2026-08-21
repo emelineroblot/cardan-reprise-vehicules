@@ -159,6 +159,34 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/api/v1/vehicles/pipeline-counts": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * Pipeline Counts
+         * @description Kanban administrateur (brief J3) — nombre de véhicules par état, tous les 11 états
+         *     représentés même à zéro (une colonne vide reste une colonne). **Doit être déclaré avant**
+         *     `GET /vehicles/{vehicle_id}` dans ce routeur : sans quoi FastAPI tenterait de parser
+         *     `"pipeline-counts"` comme un UUID de véhicule.
+         *
+         *     Lecture strictement opérationnelle (`vehicle` en direct, jamais un mart) : contrairement au
+         *     dashboard analytique, un Kanban est une vue **interactive** dont l'état doit refléter la
+         *     dernière transition, pas la dernière fenêtre de rafraîchissement (plan.md § 3.7 : la règle
+         *     « le dashboard lit les marts » vise les indicateurs de pilotage, pas cet écran opérationnel).
+         */
+        get: operations["pipeline_counts_api_v1_vehicles_pipeline_counts_get"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/api/v1/vehicles/{vehicle_id}": {
         parameters: {
             query?: never;
@@ -263,6 +291,144 @@ export interface paths {
         };
         /** Analytics Status */
         get: operations["analytics_status_api_v1_analytics_status_get"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/analytics/marge": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * Get Marge
+         * @description `GET /analytics/marge` — marge par véhicule (brief J3, cœur de la démonstration).
+         *
+         *     `sort` accepte `marge_cents`/`-marge_cents`/`date_proposition`/`-date_proposition` ; toute
+         *     autre valeur retombe sur `-marge_cents`. Les lignes sans valeur estimée (`has_marge = false`,
+         *     `marge_cents = NULL`) sont placées en fin de tri (`NULLS LAST`), jamais mêlées aux marges
+         *     réellement nulles ou négatives.
+         *
+         *     Bug corrigé (revue dev-frontend J3, 🔴 bloquant) : `WHERE (:state IS NULL OR state = :state)`
+         *     levait systématiquement `psycopg.errors.AmbiguousParameter` (« could not determine data type
+         *     of parameter $1 ») — psycopg 3 en protocole étendu prépare la requête une fois pour son texte
+         *     SQL et doit fixer le type de chaque `$n` à la préparation, indépendamment de la valeur liée
+         *     ensuite ; `$1 IS NULL` ne contraint aucun type, donc l'échec se produisait **avec et sans**
+         *     filtre `state` (vérifié : reproduit hors HTTP dans les deux cas avant correctif). La clause
+         *     `WHERE state = :state` n'est désormais émise que lorsque `state` est effectivement fourni —
+         *     chaque forme de requête a alors une signature de paramètres non ambiguë, sans caster ni lier
+         *     de type explicitement (inutile une fois l'ambiguïté structurelle supprimée).
+         */
+        get: operations["get_marge_api_v1_analytics_marge_get"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/analytics/cycle-temps": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * Get Cycle Temps
+         * @description `GET /analytics/cycle-temps` — délai de cycle par véhicule (brief J3), de la création de
+         *     la fiche à la décision d'achat/refus/annulation.
+         */
+        get: operations["get_cycle_temps_api_v1_analytics_cycle_temps_get"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/analytics/pipeline-etat": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * Get Pipeline Etat
+         * @description `GET /analytics/pipeline-etat` — vue d'ensemble analytique du pipeline (valeur immobilisée
+         *     par état). Distinct de `GET /vehicles/pipeline-counts` (opérationnel, live, sert le Kanban
+         *     manipulable) : celui-ci sert le dashboard, à la fraîcheur du dernier `refresh`.
+         */
+        get: operations["get_pipeline_etat_api_v1_analytics_pipeline_etat_get"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/analytics/refus": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * Get Refus
+         * @description `GET /analytics/refus` — taux de refus par mois × type de flotte (brief J3).
+         */
+        get: operations["get_refus_api_v1_analytics_refus_get"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/analytics/travaux": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * Get Travaux
+         * @description `GET /analytics/travaux` — coût moyen des travaux par mois × type (brief J3).
+         */
+        get: operations["get_travaux_api_v1_analytics_travaux_get"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/analytics/kpi-global": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * Get Kpi Global
+         * @description `GET /analytics/kpi-global` — les tuiles du dashboard (plan.md § 5.2).
+         */
+        get: operations["get_kpi_global_api_v1_analytics_kpi_global_get"];
         put?: never;
         post?: never;
         delete?: never;
@@ -627,6 +793,92 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/api/v1/vehicles/{vehicle_id}/work-orders": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** List Vehicle Work Orders */
+        get: operations["list_vehicle_work_orders_api_v1_vehicles__vehicle_id__work_orders_get"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/work-orders/{work_order_id}": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** Get Work Order */
+        get: operations["get_work_order_api_v1_work_orders__work_order_id__get"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/work-orders/{work_order_id}/state": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /** Transition Work Order State */
+        post: operations["transition_work_order_state_api_v1_work_orders__work_order_id__state_post"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/work-orders/{work_order_id}/lines": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /** Add Work Order Line */
+        post: operations["add_work_order_line_api_v1_work_orders__work_order_id__lines_post"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/vehicles/{vehicle_id}/costs": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** List Vehicle Costs */
+        get: operations["list_vehicle_costs_api_v1_vehicles__vehicle_id__costs_get"];
+        put?: never;
+        /** Add Vehicle Cost */
+        post: operations["add_vehicle_cost_api_v1_vehicles__vehicle_id__costs_post"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
 }
 export type webhooks = Record<string, never>;
 export interface components {
@@ -667,6 +919,8 @@ export interface components {
             height: number;
             /** Inspection Id */
             inspection_id?: string | null;
+            /** Work Order Id */
+            work_order_id?: string | null;
         };
         /**
          * ChecklistItemTemplateRead
@@ -882,6 +1136,30 @@ export interface components {
              * Format: date-time
              */
             updated_at: string;
+        };
+        /** CycleTempsRead */
+        CycleTempsRead: {
+            /**
+             * Vehicle Id
+             * Format: uuid
+             */
+            vehicle_id: string;
+            /** Reference */
+            reference: string;
+            /** State */
+            state: string;
+            /** Marque */
+            marque: string;
+            /** Modele */
+            modele: string;
+            /** Delai Saisie Affectation Heures */
+            delai_saisie_affectation_heures: number | null;
+            /** Delai Affectation Controle Heures */
+            delai_affectation_controle_heures: number | null;
+            /** Delai Controle Decision Heures */
+            delai_controle_decision_heures: number | null;
+            /** Delai Total Heures */
+            delai_total_heures: number | null;
         };
         /**
          * DuplicateCandidate
@@ -1215,6 +1493,27 @@ export interface components {
              */
             created_at: string;
         };
+        /** KpiGlobalRead */
+        KpiGlobalRead: {
+            /** Nb Vehicules Total */
+            nb_vehicules_total: number;
+            /** Nb Vehicules Actifs */
+            nb_vehicules_actifs: number;
+            /** Nb Achats Valides */
+            nb_achats_valides: number;
+            /** Nb Refuses */
+            nb_refuses: number;
+            /** Taux Refus Global */
+            taux_refus_global: number | null;
+            /** Marge Moyenne Cents */
+            marge_moyenne_cents: number | null;
+            /** Nb Marges Negatives */
+            nb_marges_negatives: number;
+            /** Delai Cycle Moyen Heures */
+            delai_cycle_moyen_heures: number | null;
+            /** Cout Travaux Moyen Cents */
+            cout_travaux_moyen_cents: number | null;
+        };
         /** LoginRequest */
         LoginRequest: {
             /**
@@ -1445,6 +1744,30 @@ export interface components {
             /** Url */
             url: string;
         };
+        /** PipelineCountsResponse */
+        PipelineCountsResponse: {
+            /** Counts */
+            counts: components["schemas"]["PipelineStateCount"][];
+        };
+        /** PipelineEtatRead */
+        PipelineEtatRead: {
+            /** State */
+            state: string;
+            /** Nb Vehicules */
+            nb_vehicules: number;
+            /** Valeur Immobilisee Cents */
+            valeur_immobilisee_cents: number;
+        };
+        /**
+         * PipelineStateCount
+         * @description Une colonne du Kanban administrateur (brief J3) — `GET /vehicles/pipeline-counts`.
+         */
+        PipelineStateCount: {
+            /** State */
+            state: string;
+            /** Count */
+            count: number;
+        };
         /**
          * PushPublicKeyResponse
          * @description `enabled=False` quand les clés VAPID sont absentes — le front ne doit alors jamais
@@ -1490,6 +1813,22 @@ export interface components {
             /** Last Used At */
             last_used_at: string | null;
         };
+        /** RefusRead */
+        RefusRead: {
+            /**
+             * Mois
+             * Format: date
+             */
+            mois: string;
+            /** Type Flotte */
+            type_flotte: string;
+            /** Nb Proposes */
+            nb_proposes: number;
+            /** Nb Refuses */
+            nb_refuses: number;
+            /** Taux Refus */
+            taux_refus: number | null;
+        };
         /**
          * RequiredAnglesResponse
          * @description Parcours d'angles imposé (brief J2) — ce que le front doit encore capturer pour un
@@ -1529,6 +1868,24 @@ export interface components {
                 [key: string]: unknown;
             } | null;
         };
+        /** TravauxRead */
+        TravauxRead: {
+            /**
+             * Mois
+             * Format: date
+             */
+            mois: string;
+            /** Type */
+            type: string;
+            /** Volume */
+            volume: number;
+            /** Nb Clos */
+            nb_clos: number;
+            /** Cout Moyen Reel Cents */
+            cout_moyen_reel_cents: number | null;
+            /** Ecart Estime Reel Cents */
+            ecart_estime_reel_cents: number | null;
+        };
         /** UnreadCountResponse */
         UnreadCountResponse: {
             /** Count */
@@ -1560,6 +1917,44 @@ export interface components {
             msg: string;
             /** Error Type */
             type: string;
+        };
+        /** VehicleCostCreate */
+        VehicleCostCreate: {
+            /** Type */
+            type: string;
+            /** Montant Cents */
+            montant_cents: number;
+            /** Commentaire */
+            commentaire?: string | null;
+        };
+        /** VehicleCostRead */
+        VehicleCostRead: {
+            /**
+             * Id
+             * Format: uuid
+             */
+            id: string;
+            /**
+             * Vehicle Id
+             * Format: uuid
+             */
+            vehicle_id: string;
+            /** Type */
+            type: string;
+            /** Montant Cents */
+            montant_cents: number;
+            /** Commentaire */
+            commentaire: string | null;
+            /**
+             * Created By Id
+             * Format: uuid
+             */
+            created_by_id: string;
+            /**
+             * Created At
+             * Format: date-time
+             */
+            created_at: string;
         };
         /** VehicleCreate */
         VehicleCreate: {
@@ -1665,7 +2060,7 @@ export interface components {
             /** Valeur Revente Estimee Cents */
             valeur_revente_estimee_cents: number | null;
             /** Frais Transport Cents */
-            frais_transport_cents: number;
+            frais_transport_cents: number | null;
             /** Commentaire */
             commentaire: string | null;
             /**
@@ -1790,7 +2185,7 @@ export interface components {
             /** Valeur Revente Estimee Cents */
             valeur_revente_estimee_cents: number | null;
             /** Frais Transport Cents */
-            frais_transport_cents: number;
+            frais_transport_cents: number | null;
             /** Commentaire */
             commentaire: string | null;
             /**
@@ -1847,6 +2242,144 @@ export interface components {
              * Format: date-time
              */
             occurred_at: string;
+        };
+        /** VehiculeMargeRead */
+        VehiculeMargeRead: {
+            /**
+             * Vehicle Id
+             * Format: uuid
+             */
+            vehicle_id: string;
+            /** Reference */
+            reference: string;
+            /**
+             * Company Id
+             * Format: uuid
+             */
+            company_id: string;
+            /** Company Denomination */
+            company_denomination: string;
+            /** State */
+            state: string;
+            /** State Label */
+            state_label: string;
+            /** Marque */
+            marque: string;
+            /** Modele */
+            modele: string;
+            /**
+             * Date Proposition
+             * Format: date
+             */
+            date_proposition: string;
+            /** Prix Achat Negocie Cents */
+            prix_achat_negocie_cents: number | null;
+            /** Frais Transport Cents */
+            frais_transport_cents: number;
+            /** Valeur Revente Estimee Cents */
+            valeur_revente_estimee_cents: number | null;
+            /** Cout Hors Atelier Cents */
+            cout_hors_atelier_cents: number;
+            /** Cout Atelier Reel Cents */
+            cout_atelier_reel_cents: number;
+            /** Marge Cents */
+            marge_cents: number | null;
+            /** Marge Pct */
+            marge_pct: number | null;
+            /** Has Marge */
+            has_marge: boolean;
+        };
+        /** WorkOrderLineCreate */
+        WorkOrderLineCreate: {
+            /** Libelle */
+            libelle: string;
+            /** Categorie */
+            categorie: string;
+            /** Quantite */
+            quantite: number | string;
+            /** Prix Unitaire Cents */
+            prix_unitaire_cents: number;
+        };
+        /** WorkOrderLineRead */
+        WorkOrderLineRead: {
+            /**
+             * Id
+             * Format: uuid
+             */
+            id: string;
+            /**
+             * Work Order Id
+             * Format: uuid
+             */
+            work_order_id: string;
+            /** Libelle */
+            libelle: string;
+            /** Categorie */
+            categorie: string;
+            /** Quantite */
+            quantite: string;
+            /** Prix Unitaire Cents */
+            prix_unitaire_cents: number;
+            /** Montant Cents */
+            montant_cents: number;
+            /**
+             * Created At
+             * Format: date-time
+             */
+            created_at: string;
+        };
+        /** WorkOrderRead */
+        WorkOrderRead: {
+            /**
+             * Id
+             * Format: uuid
+             */
+            id: string;
+            /**
+             * Vehicle Id
+             * Format: uuid
+             */
+            vehicle_id: string;
+            /** Type */
+            type: string;
+            /** State */
+            state: string;
+            /** Description */
+            description: string;
+            /** Montant Estime Cents */
+            montant_estime_cents: number | null;
+            /**
+             * Created By Id
+             * Format: uuid
+             */
+            created_by_id: string;
+            /** Assigned To Id */
+            assigned_to_id: string | null;
+            /**
+             * Requested At
+             * Format: date-time
+             */
+            requested_at: string;
+            /** Started At */
+            started_at: string | null;
+            /** Completed At */
+            completed_at: string | null;
+            /** Commentaire Atelier */
+            commentaire_atelier: string | null;
+            /** Lines */
+            lines?: components["schemas"]["WorkOrderLineRead"][];
+        };
+        /**
+         * WorkOrderStateUpdate
+         * @description `POST /work-orders/{id}/state` — mini-automate `demande -> en_cours -> termine|annule`.
+         */
+        WorkOrderStateUpdate: {
+            /** To State */
+            to_state: string;
+            /** Commentaire Atelier */
+            commentaire_atelier?: string | null;
+            /** Assigned To Id */
+            assigned_to_id?: string | null;
         };
     };
     responses: never;
@@ -2188,6 +2721,26 @@ export interface operations {
             };
         };
     };
+    pipeline_counts_api_v1_vehicles_pipeline_counts_get: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["PipelineCountsResponse"];
+                };
+            };
+        };
+    };
     get_vehicle_api_v1_vehicles__vehicle_id__get: {
         parameters: {
             query?: never;
@@ -2426,6 +2979,138 @@ export interface operations {
                     "application/json": {
                         [key: string]: unknown;
                     };
+                };
+            };
+        };
+    };
+    get_marge_api_v1_analytics_marge_get: {
+        parameters: {
+            query?: {
+                state?: string | null;
+                sort?: string;
+            };
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["VehiculeMargeRead"][];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    get_cycle_temps_api_v1_analytics_cycle_temps_get: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["CycleTempsRead"][];
+                };
+            };
+        };
+    };
+    get_pipeline_etat_api_v1_analytics_pipeline_etat_get: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["PipelineEtatRead"][];
+                };
+            };
+        };
+    };
+    get_refus_api_v1_analytics_refus_get: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["RefusRead"][];
+                };
+            };
+        };
+    };
+    get_travaux_api_v1_analytics_travaux_get: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["TravauxRead"][];
+                };
+            };
+        };
+    };
+    get_kpi_global_api_v1_analytics_kpi_global_get: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["KpiGlobalRead"];
                 };
             };
         };
@@ -2831,6 +3516,7 @@ export interface operations {
         parameters: {
             query?: {
                 inspection_id?: string | null;
+                work_order_id?: string | null;
                 phase?: string | null;
             };
             header?: never;
@@ -3135,6 +3821,204 @@ export interface operations {
                     [name: string]: unknown;
                 };
                 content?: never;
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    list_vehicle_work_orders_api_v1_vehicles__vehicle_id__work_orders_get: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                vehicle_id: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["WorkOrderRead"][];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    get_work_order_api_v1_work_orders__work_order_id__get: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                work_order_id: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["WorkOrderRead"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    transition_work_order_state_api_v1_work_orders__work_order_id__state_post: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                work_order_id: string;
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["WorkOrderStateUpdate"];
+            };
+        };
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["WorkOrderRead"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    add_work_order_line_api_v1_work_orders__work_order_id__lines_post: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                work_order_id: string;
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["WorkOrderLineCreate"];
+            };
+        };
+        responses: {
+            /** @description Successful Response */
+            201: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["WorkOrderLineRead"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    list_vehicle_costs_api_v1_vehicles__vehicle_id__costs_get: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                vehicle_id: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["VehicleCostRead"][];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    add_vehicle_cost_api_v1_vehicles__vehicle_id__costs_post: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                vehicle_id: string;
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["VehicleCostCreate"];
+            };
+        };
+        responses: {
+            /** @description Successful Response */
+            201: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["VehicleCostRead"];
+                };
             };
             /** @description Validation Error */
             422: {

@@ -1,6 +1,7 @@
 "use client";
 
 import { useState } from "react";
+import { Plus, Trash2 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import {
   Dialog,
@@ -26,7 +27,14 @@ import { LoadingState } from "@/components/ui/loading-state";
 import { useApplyTransition, useVehicleTransitions } from "@/lib/api/hooks/useVehicleTransitions";
 import { useUsers } from "@/lib/api/hooks/useUsers";
 import { datetimeLocalToIso, minDatetimeLocalValue } from "@/lib/format/date";
-import { REFUS_MOTIF_LABELS, VEHICLE_STATE_LABELS, type RefusMotif, type TransitionOption } from "@/lib/api/types";
+import {
+  REFUS_MOTIF_LABELS,
+  VEHICLE_STATE_LABELS,
+  WORK_ORDER_TYPE_LABELS,
+  type RefusMotif,
+  type TransitionOption,
+  type WorkOrderType,
+} from "@/lib/api/types";
 
 interface ActionsTransitionProps {
   vehicleId: string;
@@ -49,13 +57,31 @@ const REFUS_MOTIF_VALUES = Object.keys(REFUS_MOTIF_LABELS) as RefusMotif[];
  *
  * `driver_id` ajouté en J2 : `GET /users?role=chauffeur` (dette J1) débloque enfin la
  * sélection — voir implementation.md § J2 Backend « GET /users — dette J1 ».
+ *
+ * `work_orders` ajouté en J3 : `CONTROLE_EN_COURS → TRAVAUX_REQUIS` (implementation.md § J3
+ * Backend) — liste non vide obligatoire, un ordre par entrée, effet unique (création des
+ * `work_order`, aucun autre).
  */
 const SUPPORTED_PAYLOAD_FIELDS = new Set<string>([
   "refus_motif",
   "prix_achat_negocie_cents",
   "rdv_at",
   "driver_id",
+  "work_orders",
 ]);
+
+interface WorkOrderDraft {
+  key: string;
+  type: WorkOrderType;
+  description: string;
+  montantEstimeCents: number | null;
+}
+
+const WORK_ORDER_TYPE_VALUES = Object.keys(WORK_ORDER_TYPE_LABELS) as WorkOrderType[];
+
+function emptyWorkOrderDraft(): WorkOrderDraft {
+  return { key: crypto.randomUUID(), type: "carrosserie", description: "", montantEstimeCents: null };
+}
 
 const UNSUPPORTED_FIELD_MESSAGES: Record<string, string> = {};
 
@@ -89,6 +115,7 @@ export function ActionsTransition({ vehicleId, size = "default" }: ActionsTransi
   const [rdvContactNom, setRdvContactNom] = useState("");
   const [rdvContactTelephone, setRdvContactTelephone] = useState("");
   const [driverId, setDriverId] = useState<string | undefined>(undefined);
+  const [workOrders, setWorkOrders] = useState<WorkOrderDraft[]>([]);
   // Dérivés de `rdvAt` mais calculés en dehors du rendu (poignées d'événement) : `Date.now()`
   // est impur, l'appeler pendant le rendu casse la règle react-hooks/purity.
   const [rdvAtIsFuture, setRdvAtIsFuture] = useState(false);
@@ -120,6 +147,7 @@ export function ActionsTransition({ vehicleId, size = "default" }: ActionsTransi
     setRdvContactNom("");
     setRdvContactTelephone("");
     setDriverId(undefined);
+    setWorkOrders([emptyWorkOrderDraft()]);
     setRdvAtIsFuture(false);
     // Calculé une fois à l'ouverture (poignée d'événement, pas pendant le rendu) : borne
     // `min` du champ, purement indicative pour l'utilisateur.
@@ -137,6 +165,9 @@ export function ActionsTransition({ vehicleId, size = "default" }: ActionsTransi
   const needsRefusMotif = pending?.requires_payload_fields.includes("refus_motif") ?? false;
   const needsPrix = pending?.requires_payload_fields.includes("prix_achat_negocie_cents") ?? false;
   const needsRdvAt = pending?.requires_payload_fields.includes("rdv_at") ?? false;
+  const needsWorkOrders = pending?.requires_payload_fields.includes("work_orders") ?? false;
+  const workOrdersValid =
+    workOrders.length > 0 && workOrders.every((wo) => wo.description.trim().length > 0);
 
   const canConfirm =
     pending !== null &&
@@ -145,7 +176,14 @@ export function ActionsTransition({ vehicleId, size = "default" }: ActionsTransi
     (!needsRefusMotif || refusMotif !== undefined) &&
     (!needsPrix || prixCents !== null) &&
     (!needsRdvAt || rdvAtIsFuture) &&
-    (!needsDriverId || Boolean(driverId));
+    (!needsDriverId || Boolean(driverId)) &&
+    (!needsWorkOrders || workOrdersValid);
+
+  const addWorkOrderRow = () => setWorkOrders((rows) => [...rows, emptyWorkOrderDraft()]);
+  const removeWorkOrderRow = (key: string) =>
+    setWorkOrders((rows) => rows.filter((row) => row.key !== key));
+  const updateWorkOrderRow = (key: string, patch: Partial<WorkOrderDraft>) =>
+    setWorkOrders((rows) => rows.map((row) => (row.key === key ? { ...row, ...patch } : row)));
 
   const handleConfirm = async () => {
     if (!pending || pendingUnsupported.length > 0) return;
@@ -153,6 +191,13 @@ export function ActionsTransition({ vehicleId, size = "default" }: ActionsTransi
     if (needsRefusMotif && refusMotif) payload.refus_motif = refusMotif;
     if (needsPrix && prixCents !== null) payload.prix_achat_negocie_cents = prixCents;
     if (needsDriverId && driverId) payload.driver_id = driverId;
+    if (needsWorkOrders) {
+      payload.work_orders = workOrders.map((wo) => ({
+        type: wo.type,
+        description: wo.description.trim(),
+        ...(wo.montantEstimeCents !== null ? { montant_estime_cents: wo.montantEstimeCents } : {}),
+      }));
+    }
     if (needsRdvAt) {
       const rdvAtIso = datetimeLocalToIso(rdvAt);
       if (rdvAtIso) payload.rdv_at = rdvAtIso;
@@ -305,6 +350,76 @@ export function ActionsTransition({ vehicleId, size = "default" }: ActionsTransi
                   </div>
                 </div>
               </>
+            ) : null}
+
+            {needsWorkOrders ? (
+              <div className="flex flex-col gap-3">
+                <div className="flex items-center justify-between">
+                  <Label>Ordres de travaux à ouvrir</Label>
+                  <Button type="button" variant="outline" size="sm" onClick={addWorkOrderRow}>
+                    <Plus className="size-4" aria-hidden="true" />
+                    Ajouter
+                  </Button>
+                </div>
+                {workOrders.map((wo, index) => (
+                  <div key={wo.key} className="flex flex-col gap-2 rounded-md border border-border p-3">
+                    <div className="flex items-center justify-between gap-2">
+                      <span className="text-xs font-medium text-muted-foreground">Ordre {index + 1}</span>
+                      {workOrders.length > 1 ? (
+                        <Button
+                          type="button"
+                          variant="ghost"
+                          size="icon"
+                          className="size-7"
+                          aria-label={`Retirer l'ordre ${index + 1}`}
+                          onClick={() => removeWorkOrderRow(wo.key)}
+                        >
+                          <Trash2 className="size-3.5" aria-hidden="true" />
+                        </Button>
+                      ) : null}
+                    </div>
+                    <div>
+                      <Label htmlFor={`wo-type-${wo.key}`}>Type</Label>
+                      <Select
+                        value={wo.type}
+                        onValueChange={(v) => updateWorkOrderRow(wo.key, { type: v as WorkOrderType })}
+                      >
+                        <SelectTrigger id={`wo-type-${wo.key}`} className="mt-1.5 w-full">
+                          <SelectValue />
+                        </SelectTrigger>
+                        <SelectContent>
+                          {WORK_ORDER_TYPE_VALUES.map((value) => (
+                            <SelectItem key={value} value={value}>
+                              {WORK_ORDER_TYPE_LABELS[value]}
+                            </SelectItem>
+                          ))}
+                        </SelectContent>
+                      </Select>
+                    </div>
+                    <div>
+                      <Label htmlFor={`wo-description-${wo.key}`}>Description</Label>
+                      <Textarea
+                        id={`wo-description-${wo.key}`}
+                        className="mt-1.5"
+                        rows={2}
+                        value={wo.description}
+                        aria-invalid={wo.description.trim().length === 0 ? true : undefined}
+                        onChange={(e) => updateWorkOrderRow(wo.key, { description: e.target.value })}
+                      />
+                    </div>
+                    <div>
+                      <Label htmlFor={`wo-montant-${wo.key}`}>Montant estimé (optionnel)</Label>
+                      <div className="mt-1.5">
+                        <MoneyInput
+                          id={`wo-montant-${wo.key}`}
+                          value={wo.montantEstimeCents}
+                          onValueChange={(cents) => updateWorkOrderRow(wo.key, { montantEstimeCents: cents })}
+                        />
+                      </div>
+                    </div>
+                  </div>
+                ))}
+              </div>
             ) : null}
 
             {pending?.requires_reason ? (

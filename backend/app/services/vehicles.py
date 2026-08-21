@@ -22,6 +22,7 @@ from app.models.work_order import WorkOrder
 from app.schemas.vehicle import VehicleCreate, VehicleDraftIn
 from app.services import missions as missions_service
 from app.services import notifications as notifications_service
+from app.services import work_orders as work_orders_service
 from app.services.audit import write_vehicle_transition
 from app.services.dedup import VehicleDraft, score_candidate
 from app.services.normalize import normalize_immatriculation, normalize_modele, normalize_vin
@@ -340,13 +341,29 @@ def build_transition_context(
         is not None
     )
 
-    open_work_orders = list(
+    # Nom corrigé (dette assumée signalée par docs/wiki/pieges-projet.md § « Automate d'états » :
+    # cette variable sélectionnait déjà **tous** les work_order du véhicule, jamais seulement les
+    # ouverts — le nom mentait). `all_closed_with_cost_line` vérifie désormais réellement la garde
+    # brief J3 « chaque ordre terminé ou annulé doit porter au moins une ligne de coût » : avant
+    # ce correctif, un `work_order` `termine` sans aucune ligne passait quand même la transition
+    # `TRAVAUX_EN_COURS -> TRAVAUX_TERMINES`.
+    vehicle_work_orders = list(
         db.execute(select(WorkOrder).where(WorkOrder.vehicle_id == vehicle.id)).scalars().all()
     )
-    has_work_order_en_demande = any(w.state == "demande" for w in open_work_orders)
-    all_closed_with_cost = bool(open_work_orders) and all(
-        w.state in ("termine", "annule") for w in open_work_orders
+    has_work_order_en_demande = any(w.state == "demande" for w in vehicle_work_orders)
+    all_closed_with_cost_line = bool(vehicle_work_orders) and all(
+        w.state in ("termine", "annule") and work_orders_service.has_cost_line(db, w.id)
+        for w in vehicle_work_orders
     )
+
+    work_orders_payload_present = False
+    raw_work_orders = payload.get("work_orders")
+    if raw_work_orders:
+        try:
+            work_orders_service.parse_work_orders_payload(raw_work_orders)
+            work_orders_payload_present = True
+        except ApiError:
+            work_orders_payload_present = False
 
     return TransitionContext(
         assigned_driver_id=str(vehicle.assigned_driver_id) if vehicle.assigned_driver_id else None,
@@ -363,8 +380,9 @@ def build_transition_context(
         reason_present=bool(payload.get("reason")),
         driver_target_is_active_chauffeur=driver_target_active,
         has_work_order_en_demande=has_work_order_en_demande,
-        all_work_orders_closed_with_cost_line=all_closed_with_cost,
-        active_work_orders_count=len(open_work_orders),
+        all_work_orders_closed_with_cost_line=all_closed_with_cost_line,
+        active_work_orders_count=len(vehicle_work_orders),
+        work_orders_payload_present=work_orders_payload_present,
     )
 
 
@@ -448,6 +466,16 @@ def transition_vehicle(
         mission = missions_service.get_active_mission(db, vehicle.id)
         if mission is not None:
             missions_service.complete_mission(db, mission)
+        if target_state == VehicleState.TRAVAUX_REQUIS:
+            # Effet plan.md § 5.3 : la conclusion « travaux requis » crée les `work_order` en
+            # `demande`, à partir de `payload.work_orders` (déjà validé par la garde de la
+            # transition — `_guard_inspection_et_work_orders` — avant d'atteindre ce point).
+            work_orders_service.create_work_orders(
+                db,
+                vehicle,
+                work_orders_service.parse_work_orders_payload(payload.get("work_orders")),
+                user,
+            )
     elif target_state == VehicleState.ANNULE:
         mission = missions_service.get_active_mission(db, vehicle.id)
         if mission is not None:

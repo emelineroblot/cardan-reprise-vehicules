@@ -22,8 +22,10 @@ export function homeRouteForRole(role: Role): string {
     case "administrateur":
       return "/vehicules";
     case "atelier":
-      // J3 : espace atelier à venir. En attendant, retombe sur la liste (le
-      // cloisonnement ligne côté backend limite déjà ce qu'il y voit).
+      // J3 : pas de liste dédiée — `GET /vehicles` scopé côté backend limite déjà
+      // l'atelier aux véhicules portant un ordre de travaux ouvert (plan.md § 3.4).
+      // Les ordres de travaux, lignes de coût et photos avant/après vivent dans la
+      // fiche véhicule (`WorkOrdersSection`), pas dans un écran séparé.
       return "/vehicules";
     default:
       return "/vehicules";

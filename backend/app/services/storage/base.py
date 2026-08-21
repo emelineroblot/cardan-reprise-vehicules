@@ -40,3 +40,15 @@ class PhotoStorage(ABC):
         """Supprime toute clé commençant par `prefix` dans `bucket` — purge nocturne du
         préfixe `runtime/` (plan.md § 4 décision D, étape 3 ; § 3.6). Renvoie le nombre de
         clés supprimées."""
+
+    @abstractmethod
+    def list_top_level(self, *, bucket: str, prefix: str) -> list[str]:
+        """Liste les segments immédiatement sous `prefix` (ex. les UUID de véhicule sous
+        `seed/`), sans descendre plus profondément et sans lire aucun octet.
+
+        Sert exclusivement à identifier, par différence avant/après, les objets d'une
+        **génération précédente** à purger sélectivement une fois qu'une nouvelle génération a
+        été écrite avec succès (`app/seed/demo.py::snapshot_stale_seed_photo_prefixes` /
+        `purge_stale_seed_photos`) — jamais un simple `delete_prefix(prefix)` global, qui
+        supprimerait indifféremment l'ancienne ET la nouvelle génération puisque les deux
+        cohabitent sous le même préfixe le temps du run (correctif revue finale J3 § 🟠 n°6)."""

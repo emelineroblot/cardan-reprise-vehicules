@@ -30,10 +30,11 @@ function buildQueryString(filters: VehiclesFilters): string {
  * `VehicleListItem` (pas `Vehicle`) : le backend n'embarque pas `state_history` en liste
  * (évite le N+1 signalé en revue), mais embarque `company` (dénomination affichée).
  */
-export function useVehicles(filters: VehiclesFilters) {
+export function useVehicles(filters: VehiclesFilters, enabled = true) {
   return useQuery<Page<VehicleListItem>>({
     queryKey: ["vehicles", filters],
     queryFn: () => api.get<Page<VehicleListItem>>(`/vehicles${buildQueryString(filters)}`),
     placeholderData: keepPreviousData,
+    enabled,
   });
 }

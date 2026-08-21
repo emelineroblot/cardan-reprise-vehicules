@@ -19,6 +19,8 @@ import {
   SelectValue,
 } from "@/components/ui/select";
 import { useVehicles, type VehiclesFilters } from "@/lib/api/hooks/useVehicles";
+import { useAuth } from "@/lib/auth/AuthProvider";
+import { hasRole } from "@/lib/auth/roles";
 import { formatDate, formatImmatriculation, formatMoneyCents } from "@/lib/format";
 import {
   VEHICLE_STATE_LABELS,
@@ -44,6 +46,13 @@ function VehiculesListPage() {
   const router = useRouter();
   const pathname = usePathname();
   const searchParams = useSearchParams();
+  const { user } = useAuth();
+  // Même garde que la fiche détail (`vehicules/[id]/page.tsx`) : prix négocié réservé à
+  // opératrice/administrateur. Absente de la liste jusqu'ici — le backend renvoie désormais
+  // `null` pour le chauffeur (cloisonnement financier), mais la colonne restait affichée avec un
+  // « — » sur toutes les lignes : trompeur (donnée qui semble manquante plutôt qu'interdite) et
+  // incohérent avec la fiche détail qui masque la section entière.
+  const canSeeFinances = hasRole(user, ["operatrice", "administrateur"]);
 
   const filters = useMemo<VehiclesFilters>(() => {
     const state = searchParams.get("state");
@@ -135,13 +144,17 @@ function VehiculesListPage() {
       headerClassName: "text-right",
       cell: (v) => (v.kilometrage != null ? `${v.kilometrage.toLocaleString("fr-FR")} km` : "—"),
     },
-    {
-      key: "prix_achat_negocie_cents",
-      header: "Prix négocié",
-      className: "text-right tabular-nums",
-      headerClassName: "text-right",
-      cell: (v) => formatMoneyCents(v.prix_achat_negocie_cents),
-    },
+    ...(canSeeFinances
+      ? [
+          {
+            key: "prix_achat_negocie_cents",
+            header: "Prix négocié",
+            className: "text-right tabular-nums",
+            headerClassName: "text-right",
+            cell: (v) => formatMoneyCents(v.prix_achat_negocie_cents),
+          } satisfies DataTableColumn<VehicleListItem>,
+        ]
+      : []),
   ];
 
   const total = data?.total ?? 0;

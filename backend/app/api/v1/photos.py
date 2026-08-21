@@ -33,9 +33,8 @@ from app.services.vehicle_scope import scope_vehicles
 
 router = APIRouter()
 
-# `atelier` inclus par anticipation de J3 (phases `avant_travaux`/`apres_travaux`) — le service
-# refuse aujourd'hui toute phase autre que `controle` (voir `app/services/photos.py`), donc ce
-# rôle ne peut rien téléverser tant que ces phases ne sont pas ouvertes.
+# `atelier` — photos avant/après travaux (J3, phases `avant_travaux`/`apres_travaux`, liées à un
+# `work_order_id` plutôt qu'à un `inspection_id`, voir `app/services/photos.py::create_photo`).
 _UPLOAD_ROLES = ("chauffeur", "administrateur", "atelier")
 
 
@@ -90,6 +89,7 @@ async def upload_photo(
     width: Annotated[int, Form()],
     height: Annotated[int, Form()],
     inspection_id: Annotated[UUID | None, Form()] = None,
+    work_order_id: Annotated[UUID | None, Form()] = None,
     db: Session = Depends(get_db),
     user: AppUser = Depends(require_roles(*_UPLOAD_ROLES)),
 ) -> PhotoRead:
@@ -105,6 +105,7 @@ async def upload_photo(
         angle=angle,
         phase=phase,
         inspection_id=inspection_id,
+        work_order_id=work_order_id,
         captured_at=_parse_captured_at(captured_at),
         checksum_sha256=checksum_sha256,
         width=width,
@@ -123,12 +124,15 @@ def list_vehicle_photos(
     db: Session = Depends(get_db),
     user: AppUser = Depends(get_current_user),
     inspection_id: UUID | None = None,
+    work_order_id: UUID | None = None,
     phase: str | None = None,
 ) -> list[PhotoRead]:
     _get_scoped_vehicle(db, vehicle_id, user)
     stmt = select(Photo).where(Photo.vehicle_id == vehicle_id)
     if inspection_id:
         stmt = stmt.where(Photo.inspection_id == inspection_id)
+    if work_order_id:
+        stmt = stmt.where(Photo.work_order_id == work_order_id)
     if phase:
         stmt = stmt.where(Photo.phase == phase)
     stmt = stmt.order_by(Photo.captured_at)

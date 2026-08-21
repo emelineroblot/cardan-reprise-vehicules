@@ -12,8 +12,13 @@ Ordre non négociable :
    J1 (aucun upload réel n'existait encore, décision C) ; câblée en J2 sur l'abstraction
    `PhotoStorage` (`app/services/storage/`), best-effort : un échec de purge ne fait jamais
    échouer le reset (le statut `demo_reset_run` reste `succes`, seul un avertissement est loggué).
-4. `analytics build` + `refresh` (connexion autocommit séparée, après le commit ci-dessus).
-5. écriture d'une ligne `demo_reset_run`.
+4. purge du préfixe `seed/` (photos de démo du run précédent), même position et même garantie
+   best-effort que 3. — **après** le commit du TRUNCATE+seed, jamais avant (correctif revue
+   finale J3 § 🟠 n°6, `app/seed/demo.py::purge_stale_seed_photos`) : purger avant cassait
+   l'atomicité gagnée en 2., un échec de seed après la purge laissait la base revenir à son état
+   de la veille alors que les fichiers avaient déjà disparu du disque.
+5. `analytics build` + `refresh` (connexion autocommit séparée, après le commit ci-dessus).
+6. écriture d'une ligne `demo_reset_run`.
 """
 
 from __future__ import annotations
@@ -30,7 +35,12 @@ from app.analytics.runner import refresh as analytics_refresh
 from app.core.config import get_settings
 from app.db.session import SessionLocal
 from app.models.demo import DemoResetRun
-from app.seed.demo import SEED_VERSION, seed_demo
+from app.seed.demo import (
+    SEED_VERSION,
+    purge_stale_seed_photos,
+    seed_demo,
+    snapshot_stale_seed_photo_prefixes,
+)
 from app.seed.reference import seed_reference
 from app.services.storage.service import get_storage_backend
 
@@ -76,11 +86,29 @@ def run_demo_reset() -> dict:
 
     db = SessionLocal()
     try:
+        settings = get_settings()
+        storage = get_storage_backend()
+        # Capturée AVANT le TRUNCATE+seed ci-dessous, donc avant que les nouvelles clés du run
+        # courant n'apparaissent sous `seed/` : la liste des sous-répertoires du run *précédent*,
+        # seule purgée après coup par `purge_stale_seed_photos` — jamais un `delete_prefix`
+        # global, qui emporterait aussi les photos que ce run est sur le point d'écrire (correctif
+        # revue finale J3 § 🟠 n°6, voir la docstring de `snapshot_stale_seed_photo_prefixes`).
+        # Best-effort : une erreur ici ne doit jamais empêcher le reset lui-même, seulement
+        # renoncer à la purge de cette passe (les fichiers de la veille resteraient orphelins
+        # jusqu'au run suivant, qui les verra à nouveau dans son propre snapshot).
+        try:
+            stale_seed_prefixes = snapshot_stale_seed_photo_prefixes(
+                storage, bucket=settings.supabase_bucket
+            )
+        except Exception:  # noqa: BLE001 — best-effort, ne fait jamais échouer le reset
+            logger.warning("Photographie du préfixe seed/ échouée (non bloquant).", exc_info=True)
+            stale_seed_prefixes = []
+
         # TRUNCATE + les deux seeds sur la MÊME session, un seul commit final : un échec de
         # seed annule aussi le TRUNCATE (atomicité, revue § 🟠).
         _truncate_operational_tables(db)
         reference_result = seed_reference(db)
-        demo_result = seed_demo(db, force=True)
+        demo_result = seed_demo(db, force=True, storage=storage)
         db.commit()
         rows_created = {**reference_result, **demo_result}
 
@@ -89,10 +117,22 @@ def run_demo_reset() -> dict:
         analytics_refresh()
 
         try:
-            settings = get_settings()
-            get_storage_backend().delete_prefix(bucket=settings.supabase_bucket, prefix="runtime/")
+            storage.delete_prefix(bucket=settings.supabase_bucket, prefix="runtime/")
         except Exception:  # noqa: BLE001 — purge best-effort, ne fait jamais échouer le reset
             logger.warning("Purge du préfixe runtime/ échouée (non bloquant).", exc_info=True)
+
+        try:
+            # Purge sélective des SEULS sous-répertoires `seed/` photographiés avant le run
+            # (jamais les clés que ce run vient d'écrire) — après le commit ci-dessus, jamais
+            # avant (correctif revue finale J3 § 🟠 n°6) : purger avant cassait l'atomicité
+            # gagnée par le commit unique ci-dessus, un échec de seed laissant alors la base
+            # revenir à son état de la veille alors que les fichiers avaient déjà disparu du
+            # disque. Best-effort comme la purge `runtime/`.
+            purge_stale_seed_photos(
+                storage, bucket=settings.supabase_bucket, stale_prefixes=stale_seed_prefixes
+            )
+        except Exception:  # noqa: BLE001 — purge best-effort, ne fait jamais échouer le reset
+            logger.warning("Purge du préfixe seed/ échouée (non bloquant).", exc_info=True)
     except Exception as exc:  # noqa: BLE001 — tracé dans demo_reset_run, jamais masqué
         db.rollback()
         status = "echec"
