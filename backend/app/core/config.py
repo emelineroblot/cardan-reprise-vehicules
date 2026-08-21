@@ -86,6 +86,15 @@ class Settings(BaseSettings):
         return self.environment == "production"
 
     @property
+    def supabase_storage_configured(self) -> bool:
+        """`True` seulement si les deux valeurs Supabase Storage sont posées — c'est ce que lit
+        `app/services/storage/service.py::get_storage_backend` pour choisir le backend. Centralisé
+        ici (plutôt que répété au point d'appel) pour qu'un seul endroit décide de la règle « sans
+        clés, le disque local reste actif » (`docs/wiki/architecture.md` § Stockage des photos) —
+        aucun développement local ne doit jamais dépendre d'un compte Supabase existant."""
+        return bool(self.supabase_url and self.supabase_service_key)
+
+    @property
     def is_remote(self) -> bool:
         """`True` pour test/preview/production — tout ce qui n'est pas `local` (revue § 🟡) :
         un déploiement Vercel *preview* posait le cookie de session sans `Secure` et gardait

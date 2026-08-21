@@ -112,9 +112,9 @@ def dispatch_pending_push(db: Session, notification: Notification) -> None:
     except Exception:  # noqa: BLE001 — best-effort (review-j2-finale.md § 🟡 n°6) : la
         # transition véhicule est déjà committée par l'appelant (`vehicles.py::transition_vehicle`)
         # avant que cette fonction ne soit invoquée. Un échec ici (ex. connexion coupée par la
-        # mise en veille Neon pendant l'appel réseau push) ne doit jamais renvoyer un 500 au
-        # client sur une action déjà réussie — seul le marquage `sent_at`/`is_active` est perdu,
-        # sans conséquence fonctionnelle (retenté au prochain envoi).
+        # mise en veille de la base Supabase pendant l'appel réseau push) ne doit jamais renvoyer
+        # un 500 au client sur une action déjà réussie — seul le marquage `sent_at`/`is_active`
+        # est perdu, sans conséquence fonctionnelle (retenté au prochain envoi).
         logger.exception(
             "Échec de la mise à jour post-push (sent_at/is_active) — sans conséquence sur la "
             "transition déjà committée."

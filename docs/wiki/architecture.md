@@ -309,10 +309,13 @@ push : seeds et migrations ne peuvent pas diverger sans que la CI vire au rouge.
   signée — la fonction Python ne voit jamais l'octet. **→ Révisée le 2026-08-20 (J2)** : J2 livre
   une abstraction `PhotoStorage` sur disque local, l'octet transitant par le backend ; le stockage
   objet reste la cible du déploiement. Voir « Stockage des photos » plus bas. Vercel Blob a été écarté faute de région UE
-  garantie, `bytea` faute de quota. **Le seed ne stocke aucune photo** : les véhicules de démo
-  référencent un pool de visuels statiques (`is_placeholder = true`), soit 0 octet de quota
-  consommé ; seules les photos prises pendant une démo occupent le bucket, et elles disparaissent
-  au reset de la nuit (préfixes `demo/` conservé, `runtime/` purgé).
+  garantie, `bytea` faute de quota. **→ Non appliquée telle quelle par le seed final (constat au
+  déploiement, 2026-08-21)** : `app/seed/demo.py` écrit en réalité 583 photos réelles et
+  distinctes par génération (`is_placeholder = false`), pas un pool de visuels statiques — chaque
+  reset nocturne les réécrit en totalité. C'est ce volume, écrit séquentiellement vers un stockage
+  réseau, qui a motivé la mesure du budget de temps du reset au déploiement ; revenir au pool
+  statique décrit ici reste une option non tranchée pour réduire ce volume — voir
+  [deploiement.md](deploiement.md) § 6, option A.
 - **Marge : la formule est figée dès J1, appliquée en J3.** Deux règles non négociables — la marge
   **peut être négative** (aucun `GREATEST(0, …)`), et une valeur de revente absente donne
   `marge_cents = NULL` avec `has_marge = false`, l'UI affichant « — » et jamais « 0 € ». Confondre
@@ -360,6 +363,22 @@ dans ce jalon :
 ## Stockage des photos — abstraction `PhotoStorage`, disque local aujourd'hui, stockage objet au déploiement
 *Décidé le 2026-08-20 — run `pwa-terrain` (J2). Révise la décision de second rang du 2026-08-20 (J1)
 « Photos : Supabase Storage, upload direct navigateur par URL signée ».*
+
+**→ Bascule réalisée le 2026-08-21 (run `déploiement-supabase`).** Le pari a tenu : brancher
+Supabase Storage a coûté exactement une classe (`SupabaseStorage`, `backend/app/services/storage/
+supabase.py`) et un branchement dans `get_storage_backend()` (choisi par configuration — présence
+de `SUPABASE_URL`/`SUPABASE_SERVICE_KEY` — jamais une variable dédiée), **aucun autre fichier**
+n'a changé. Le fournisseur retenu est bien Supabase (parmi d'autres options possibles, cf.
+« Garder le choix du fournisseur ouvert » ci-dessous — jamais formellement comparé à des
+alternatives, la décision a été prise directement par Emeline). `PhotoStorage` avait grandi entre
+J2/J3 (`delete_prefix`, `list_top_level` pour la purge sélective du reset nocturne) : les deux
+sont implémentées. Un point n'a **pas** bougé, par choix explicite et non une simplification
+oubliée : `read_url` continue de renvoyer la même route backend authentifiée que
+`LocalDiskStorage` (jamais une URL signée Supabase directe), pour conserver le scoping par
+véhicule évoqué dans les conséquences ci-dessous — cette bascule-là (vers une URL signée) reste
+un travail futur possible, pas fait ici. Deux comportements réels de l'API Supabase Storage,
+absents de sa documentation publique, ont été découverts en testant contre un vrai projet plutôt
+qu'en lisant la doc — voir [pieges-projet.md](pieges-projet.md) § Déploiement.
 
 **Décision.** Les octets ne sont jamais manipulés directement par le code métier : un port
 `PhotoStorage` (interface), une implémentation `LocalDiskStorage` (active aujourd'hui, sous

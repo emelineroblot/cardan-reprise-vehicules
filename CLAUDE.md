@@ -28,7 +28,8 @@ Branches prévues :
 main
 ├── feature/socle-saisie        (J1 — modèle de données, auth 3 rôles, fiche d'achat, dédoublonnage)
 ├── feature/pwa-terrain         (J2 — mission chauffeur, checklist, photos guidées, offline)
-└── feature/pilotage-marge      (J3 — atelier, Kanban, couche analytique, dashboard)
+├── feature/pilotage-marge      (J3 — atelier, Kanban, couche analytique, dashboard)
+└── feature/deploiement-supabase (bascule stockage Supabase Storage, config Vercel/Supabase)
 ```
 
 ## Stack
@@ -40,23 +41,28 @@ main
   `UNIQUE(mission_id)` sur `inspection` — une seule inspection par mission, corrige un doublon
   possible au rechargement de l'écran de contrôle après soumission).
 - **Frontend** : Next.js — module terrain en PWA installable (caméra, stockage local, web push)
-- **Base de données** : PostgreSQL managé
-- **Stockage photos (J2, préfixe corrigé en J3)** : abstraction `PhotoStorage`
-  (`backend/app/services/storage/`) — backend **disque local** actif aujourd'hui (`local.py`,
-  aucune clé requise). Le disque local n'est pas utilisable en serverless : un fournisseur de
-  stockage objet devra être choisi **au déploiement**, en implémentant une nouvelle classe et en
-  la branchant dans `service.py` (aucun autre fichier à toucher). Le fournisseur n'est pas arrêté
-  — voir `docs/wiki/architecture.md` § Stockage des photos. La route backend réelle est
-  `GET /api/v1/photos/file/{bucket}/{key}` (authentifiée par cookie, scopée comme les véhicules
-  via `scope_vehicles`), mais `PhotoRead.url` renvoyée au front porte le préfixe **navigateur**
-  `/api/backend/v1/photos/file/{bucket}/{key}` — le navigateur n'appelle jamais le backend en
-  direct (rewrite Next, § Déploiement) et n'a jamais à reconstruire ce préfixe lui-même. Piège
-  corrigé avant le premier écran J3 affichant une photo — voir `docs/wiki/pieges-projet.md`.
-  `PhotoStorage` porte aussi `list_top_level(bucket, prefix)` (ajouté post-J3, revue finale § 🟠
-  n°6) — liste les segments immédiatement sous un préfixe sans lire d'octet, utilisé par le reset
-  nocturne pour purger sélectivement la génération de photos `seed/` précédente sans jamais
-  toucher à celle que le run courant vient d'écrire. Toute future implémentation objet (Supabase)
-  doit l'implémenter aussi.
+- **Base de données** : Supabase Postgres managé — connexion **Transaction pooler** (Supavisor,
+  port 6543) pour l'API, connexion **directe** (port 5432) pour les migrations Alembic et
+  `REFRESH MATERIALIZED VIEW ... CONCURRENTLY` (`DATABASE_URL`/`DATABASE_URL_DIRECT`, voir
+  `docs/wiki/deploiement.md`).
+- **Stockage photos** : abstraction `PhotoStorage` (`backend/app/services/storage/`), backend
+  choisi par **configuration**, jamais par une variable dédiée — `Settings.
+  supabase_storage_configured` (`app/core/config.py`) décide : `SupabaseStorage`
+  (`supabase.py`, appelle directement l'API REST Supabase Storage via `httpx`) si
+  `SUPABASE_URL`/`SUPABASE_SERVICE_KEY` sont **toutes deux** renseignées, sinon `LocalDiskStorage`
+  (`local.py`, aucune clé requise) — un clone du dépôt sans compte Supabase n'est jamais dégradé.
+  La route backend réelle est `GET /api/v1/photos/file/{bucket}/{key}` (authentifiée par cookie,
+  scopée comme les véhicules via `scope_vehicles`), et `PhotoRead.url` renvoyée au front porte
+  toujours le préfixe **navigateur** `/api/backend/v1/photos/file/{bucket}/{key}` — **y compris
+  avec le backend Supabase** (`SupabaseStorage.read_url` renvoie la même route que
+  `LocalDiskStorage`, jamais une URL signée Supabase directe, pour conserver le scoping par
+  véhicule) — le navigateur n'appelle jamais le backend en direct (rewrite Next, § Déploiement)
+  et n'a jamais à reconstruire ce préfixe lui-même. `PhotoStorage` porte aussi
+  `delete_prefix`/`list_top_level` (purge sélective du reset nocturne), implémentées par les deux
+  backends — `SupabaseStorage.delete_prefix` liste récursivement puis supprime par lot (l'API
+  Supabase n'a pas d'équivalent serveur d'un `rm -r` par préfixe). Deux comportements de l'API
+  réelle absents de sa documentation publique, découverts en testant contre un vrai projet : voir
+  `docs/wiki/pieges-projet.md` § Déploiement.
 - **Notifications (J2)** : persistées en base (`notification`, chemin nominal, aucune clé
   requise) ; web push réel optionnel, activé uniquement si `VAPID_PUBLIC_KEY` et
   `VAPID_PRIVATE_KEY` sont toutes deux configurées (`backend/app/services/push.py`). Son
@@ -91,14 +97,24 @@ main
   des 4 marts précédents — ordre de déclaration significatif dans `manifest.yml`). Endpoints de
   lecture : `GET /analytics/{marge,cycle-temps,pipeline-etat,refus,travaux,kpi-global}`, réservés
   à `administrateur`.
-- **Hébergement** : Vercel + Postgres managé, offres gratuites, hébergement UE
+- **Hébergement** : Vercel (deux projets) + Supabase (Postgres managé + Storage), offres
+  gratuites, hébergement UE. Marche à suivre complète, valeurs à récupérer côté Supabase et
+  variables à poser côté Vercel : `docs/wiki/deploiement.md`.
 
 ## Tâche planifiée (cron)
 
 - `backend/vercel.json` déclare un cron **quotidien** `0 3 * * *` sur
   `POST /api/v1/admin/demo-reset` : `TRUNCATE` des tables opérationnelles (liste en dur) +
   reseed (`reference` puis `demo`) + rafraîchissement des marts analytics. Authentifié par
-  `Authorization: Bearer $CRON_SECRET`, comparé en temps constant côté backend. La purge des
+  `Authorization: Bearer $CRON_SECRET`, comparé en temps constant côté backend. `vercel.json`
+  déclare aussi `"functions": {"api/index.py": {"maxDuration": 300}}` — 300 s est le plafond
+  du plan Hobby avec Fluid Compute (« enabled by default » selon la documentation Vercel
+  consultée le 2026-08-21), **à vérifier sur le projet réel** avant le premier déploiement
+  (Project Settings → Functions → Fluid Compute) : le chiffre historiquement associé au plan
+  gratuit (60 s) est celui du modèle serverless classique, pré-Fluid Compute. Mesuré contre le
+  vrai Supabase Storage : le reset écrit 583 photos, ≈ 101 s en séquentiel (tel qu'implémenté
+  aujourd'hui) — tient sous 300 s, dépasserait 60 s. Détail chiffré et options non tranchées
+  (parallélisation notamment) : `docs/wiki/deploiement.md` § 6. La purge des
   photos de démo (`seed/`) s'exécute **après** le commit du `TRUNCATE`+seed, jamais avant : un
   échec de seed laisse alors la base **et** le disque dans l'état de la veille (photos incluses),
   jamais l'un désynchronisé de l'autre. Purge sélective par génération (`app/seed/demo.py::
