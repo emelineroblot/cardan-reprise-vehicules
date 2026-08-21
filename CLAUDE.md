@@ -99,30 +99,39 @@ main
   des 4 marts précédents — ordre de déclaration significatif dans `manifest.yml`). Endpoints de
   lecture : `GET /analytics/{marge,cycle-temps,pipeline-etat,refus,travaux,kpi-global}`, réservés
   à `administrateur`.
-- **Hébergement** : Vercel (deux projets) + Supabase (Postgres managé + Storage), offres
-  gratuites, hébergement UE. Marche à suivre complète, valeurs à récupérer côté Supabase et
+- **Hébergement** : Vercel (deux projets) + Supabase (Postgres managé + Storage, région
+  `eu-west-1`), offres gratuites, hébergement UE. **Démo en ligne :
+  https://cardan-demo-ten.vercel.app** (le domaine `cardan-demo.vercel.app` appartient à un
+  tiers — les noms `*.vercel.app` sont globaux, Vercel suffixe en cas de collision). Backend :
+  `https://cardan-backend.vercel.app`, jamais appelé en direct par le navigateur. Marche à suivre complète, valeurs à récupérer côté Supabase et
   variables à poser côté Vercel : `docs/wiki/deploiement.md`.
 
-## Tâche planifiée (cron)
+## Réinitialisation de la démonstration — manuelle, jamais planifiée
 
-- `backend/vercel.json` déclare un cron **quotidien** `0 3 * * *` sur
-  `POST /api/v1/admin/demo-reset` : `TRUNCATE` des tables opérationnelles (liste en dur) +
-  reseed (`reference` puis `demo`) + rafraîchissement des marts analytics. Authentifié par
-  `Authorization: Bearer $CRON_SECRET`, comparé en temps constant côté backend. `vercel.json`
-  déclare aussi `"functions": {"api/index.py": {"maxDuration": 300}}` — 300 s est le plafond
-  du plan Hobby avec Fluid Compute (« enabled by default » selon la documentation Vercel
-  consultée le 2026-08-21), **à vérifier sur le projet réel** avant le premier déploiement
-  (Project Settings → Functions → Fluid Compute) : le chiffre historiquement associé au plan
-  gratuit (60 s) est celui du modèle serverless classique, pré-Fluid Compute. Mesuré contre le
-  vrai Supabase Storage : le reset écrit 583 photos, ≈ 101 s en séquentiel (tel qu'implémenté
-  aujourd'hui) — tient sous 300 s, dépasserait 60 s. Détail chiffré et options non tranchées
-  (parallélisation notamment) : `docs/wiki/deploiement.md` § 6. La purge des
-  photos de démo (`seed/`) s'exécute **après** le commit du `TRUNCATE`+seed, jamais avant : un
-  échec de seed laisse alors la base **et** le disque dans l'état de la veille (photos incluses),
-  jamais l'un désynchronisé de l'autre. Purge sélective par génération (`app/seed/demo.py::
-  snapshot_stale_seed_photo_prefixes`/`purge_stale_seed_photos`), pas un simple déplacement du
-  `delete_prefix` — un `delete_prefix("seed/")` global après le commit effacerait aussi les
-  photos que le run courant vient d'écrire.
+> ⚠️ **Il n'y a pas de cron.** `backend/vercel.json` n'en déclare plus : la démo n'accumule
+> aucune donnée nouvelle, et une exécution nocturne non surveillée coûtait 365 occasions
+> d'échec par an pour un besoin qui ne se présente que ponctuellement.
+
+`POST /api/v1/admin/demo-reset` reste disponible et sert de **bouton de remise à neuf** :
+`TRUNCATE` des tables opérationnelles (liste en dur) + reseed (`reference` puis `demo`) +
+rafraîchissement des marts. Authentifié par `Authorization: Bearer $CRON_SECRET`, comparé en
+temps constant.
+
+À déclencher quand la démo a été abîmée par un visiteur (les quatre comptes sont publics et
+peuvent écrire) ou avant un rendez-vous important. Les dates du jeu de démonstration sont
+**relatives au jour d'exécution** (`app/seed/demo.py`) : un reset rafraîchit donc aussi la
+frise temporelle, qui vieillirait sinon mois après mois.
+
+⚠️ **La route dépasse la limite de durée d'une fonction Vercel** (mesuré en production le
+2026-08-21 : `FUNCTION_INVOCATION_TIMEOUT` à 300 s). Le travail, lui, **aboutit** — base
+peuplée, 583 photos écrites dans le bucket, marts rafraîchis, indicateurs conformes aux
+valeurs de référence — seule la réponse HTTP expire. Un appel qui renvoie 504 n'est donc pas
+un échec, mais il ne prouve rien non plus : **vérifier l'état en base après coup**, jamais se
+fier au code de retour. Pour un reset propre et observable, préférer l'exécution depuis un
+poste (`python -m app.cli seed --profile demo` avec les variables d'environnement de
+production), qui n'a aucune limite de durée. Le coût vient des 583 envois de photos, un par
+requête réseau vers Supabase Storage : ≈ 173 ms l'unité depuis un poste, davantage depuis une
+fonction Vercel.
 
 ## Règles propres au projet
 

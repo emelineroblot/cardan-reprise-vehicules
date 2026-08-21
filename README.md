@@ -71,11 +71,16 @@ analytique séparée dans son propre schéma (vues de staging → vues matérial
 
 ## Démonstration
 
-Quatre comptes, un par rôle, en connexion d'un clic depuis l'écran de connexion. Les données
-sont fictives, générées, et réinitialisées chaque nuit — y compris les photos, régénérées avec elles.
-Le jeu de démonstration compte 90 véhicules répartis sur l'ensemble du cycle de vie, avec leurs
-missions, inspections, ordres de travaux et coûts, et comporte par construction au moins une marge
-négative.
+**→ [cardan-demo-ten.vercel.app](https://cardan-demo-ten.vercel.app)**
+
+Quatre comptes, un par rôle, en connexion d'un clic depuis l'écran de connexion. Les données sont
+fictives et générées — photos comprises, produites par le seed lui-même. Le jeu de démonstration
+compte 90 véhicules répartis sur l'ensemble du cycle de vie, avec leurs missions, inspections,
+photos, ordres de travaux et coûts, et comporte par construction au moins une marge négative :
+un tableau de bord de marge qui n'afficherait que des chiffres flatteurs ne démontrerait rien.
+
+La démonstration est **modifiable** : les comptes peuvent créer des fiches et faire avancer des
+véhicules. Elle se réinitialise à la demande, jamais automatiquement.
 
 ## Qualité
 

@@ -3,9 +3,6 @@
   "rewrites": [
     { "source": "/api/(.*)", "destination": "/api/index" }
   ],
-  "crons": [
-    { "path": "/api/v1/admin/demo-reset", "schedule": "0 3 * * *" }
-  ],
   "functions": {
     "api/index.py": {
       "maxDuration": 300
