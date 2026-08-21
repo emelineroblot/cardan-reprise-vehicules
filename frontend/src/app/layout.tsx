@@ -50,7 +50,14 @@ export default function RootLayout({ children }: LayoutProps<"/">) {
       // `.dark` en conséquence : un mismatch serveur/client attendu, jamais une vraie erreur.
       suppressHydrationWarning
     >
-      <body className="min-h-full flex flex-col bg-background text-foreground">
+      {/* Certaines extensions de navigateur injectent leurs propres attributs sur `<body>`
+          (ex. `data-atm-ext-installed`) avant l'hydratation de React : divergence côté client
+          qui n'a rien à voir avec notre rendu, et qui masque l'écran derrière l'overlay
+          d'erreur en développement. */}
+      <body
+        suppressHydrationWarning
+        className="min-h-full flex flex-col bg-background text-foreground"
+      >
         <a
           href="#contenu-principal"
           className="sr-only focus:not-sr-only focus:absolute focus:left-2 focus:top-2 focus:z-50 focus:rounded-md focus:bg-primary focus:px-3 focus:py-2 focus:text-primary-foreground"
