@@ -108,3 +108,33 @@ def test_vercel_absent_with_default_environment_keeps_local_behaviour() -> None:
     assert settings.vercel is False
     assert settings.is_remote is False
     assert settings.jwt_secret
+
+
+def test_supabase_storage_configured_false_without_any_value() -> None:
+    settings = _settings()
+    assert settings.supabase_storage_configured is False
+
+
+@pytest.mark.parametrize(
+    "supabase_url,supabase_service_key",
+    [("https://x.supabase.co", None), (None, "service-role-key")],
+)
+def test_supabase_storage_configured_false_with_only_one_value(
+    supabase_url: str | None, supabase_service_key: str | None
+) -> None:
+    """Les deux valeurs sont requises — jamais un backend Supabase à moitié configuré (une clé
+    seule ne suffit pas à construire une URL de stockage valide, et réciproquement)."""
+    kwargs: dict[str, str] = {}
+    if supabase_url is not None:
+        kwargs["supabase_url"] = supabase_url
+    if supabase_service_key is not None:
+        kwargs["supabase_service_key"] = supabase_service_key
+    settings = _settings(**kwargs)
+    assert settings.supabase_storage_configured is False
+
+
+def test_supabase_storage_configured_true_with_both_values() -> None:
+    settings = _settings(
+        supabase_url="https://x.supabase.co", supabase_service_key="service-role-key"
+    )
+    assert settings.supabase_storage_configured is True

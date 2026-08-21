@@ -1,7 +1,9 @@
 """Engine et session SQLAlchemy — sync (plan.md § 3.3), pool réduit adapté au serverless.
 
 Voir plan.md § 3.8-1/2 : pool_size=1, max_overflow=2, pool_pre_ping=True, pool_recycle=280,
-et `prepared_statement_cache_size=0` quand on passe par le pooler Neon (mode transaction).
+et `prepare_threshold=None` quand on passe par le pooler Supabase (Supavisor, mode transaction —
+compatible PgBouncer ; `DATABASE_URL` doit alors être la chaîne « Transaction pooler », jamais la
+connexion directe, voir `docs/wiki/deploiement.md`).
 """
 
 from __future__ import annotations

@@ -222,3 +222,31 @@ vivent dans la skill globale `stack-pitfalls`, pas ici.
   sur un mart vide, ce que `KpiGlobalRead` rejette en `ResponseValidationError` — la branche
   défensive provoque le plantage qu'elle prétend éviter (cas inatteignable, le mart produisant
   toujours une ligne). *(2026-08-21)*
+
+## Déploiement — stockage Supabase et budget de temps du reset nocturne
+
+- 🔴 **L'API Supabase Storage répond `400`, jamais `404`, sur une clé absente — sur `HEAD`
+  *et* sur `GET`.** Constaté contre un vrai projet, pas déduit de la documentation. Sur `GET`, le
+  corps JSON reste exploitable (`{"statusCode": "404", "error": "not_found", "code":
+  "NoSuchKey"}` — c'est ce corps qu'il faut lire, pas le code HTTP de la réponse elle-même) ;
+  sur `HEAD`, le corps est vide et rien ne permet de distinguer « absent » d'une autre erreur
+  côté requête. `SupabaseStorage.load`/`exists` (`backend/app/services/storage/supabase.py`)
+  traitent ces deux cas spécifiquement — toute autre implémentation HTTP de cette API doit
+  refaire cette vérification, un simple `if status == 404` la manquerait entièrement.
+  *(2026-08-21)*
+- **`DELETE .../object/{bucket}` n'accepte que des chemins complets sous la clé `prefixes`**,
+  malgré son nom — il n'y a pas d'équivalent serveur d'un `rm -r` par préfixe côté Supabase
+  Storage. `delete_prefix` liste donc récursivement tous les objets sous le préfixe demandé avant
+  de les supprimer par lot ; toute nouvelle méthode de purge doit passer par le même détour.
+  *(2026-08-21)*
+- **Le reset nocturne (583 écritures de photos) ne coûte presque rien en local** (moins de 0,3 s
+  sur disque) **mais ≈ 101 s en séquentiel contre le vrai Supabase Storage** (mesuré, moyenne
+  173 ms/écriture) — largement au-dessus d'un plafond de fonction serverless à 60 s, dans la
+  marge d'un plafond à 300 s. La parallélisation (`ThreadPoolExecutor`, 20 workers) ramène ce
+  chiffre à ≈ 10 s, mesuré sans erreur contre le même projet. Détail chiffré et options non
+  tranchées : [deploiement.md](deploiement.md) § 6. *(2026-08-21)*
+- **La documentation Vercel affiche aujourd'hui 300 s de durée de fonction par défaut ET maximale
+  sur le plan Hobby** (Fluid Compute, indiqué actif par défaut) — pas les 60 s du modèle
+  serverless classique. À vérifier sur le projet réel avant tout arbitrage fondé sur l'un ou
+  l'autre chiffre (Project Settings → Functions → Fluid Compute) : un projet plus ancien peut ne
+  pas l'avoir activé. *(2026-08-21)*

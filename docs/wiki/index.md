@@ -12,6 +12,8 @@ compte durablement est ici.
 
 - [architecture.md](architecture.md) — décisions structurantes et leur justification
 - [pieges-projet.md](pieges-projet.md) — pièges spécifiques à ce projet
+- [deploiement.md](deploiement.md) — marche à suivre de déploiement (Vercel + Supabase), valeurs
+  à récupérer, et l'analyse chiffrée du budget de temps du reset nocturne
 - [journal.md](journal.md) — une entrée datée par run de team
 
 Ce wiki couvre le **pourquoi**. Le **quoi** (stack, commandes, conventions de branches) vit

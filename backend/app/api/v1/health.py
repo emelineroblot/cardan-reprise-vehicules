@@ -1,7 +1,8 @@
 """`GET /api/v1/health` — préchauffage (plan.md § 3.8-5).
 
 Appelé par la page d'accueil publique dès son chargement pour réveiller la fonction Vercel et
-la base Neon avant même que le prospect ait cliqué sur « Se connecter ».
+la base Supabase (Postgres managé, offre gratuite avec mise en veille par inactivité) avant même
+que le prospect ait cliqué sur « Se connecter ».
 """
 
 from __future__ import annotations
