@@ -3,6 +3,7 @@
 import Link from "next/link";
 import { ChevronRight, MapPin } from "lucide-react";
 import { RoleGuard } from "@/components/domain/RoleGuard";
+import { PageHeader } from "@/components/domain/PageHeader";
 import { PushSubscribeButton } from "@/components/domain/PushSubscribeButton";
 import { LoadingState } from "@/components/ui/loading-state";
 import { ErrorState } from "@/components/ui/error-state";
@@ -25,15 +26,12 @@ function MissionsList() {
 
   return (
     <div className="flex flex-col gap-6">
-      <div className="flex flex-wrap items-start justify-between gap-3">
-        <div>
-          <h1 className="text-2xl font-semibold tracking-tight">Mes missions</h1>
-          <p className="text-sm text-muted-foreground">
-            Contrôles véhicule à effectuer sur place, du rendez-vous à la validation.
-          </p>
-        </div>
-        <PushSubscribeButton />
-      </div>
+      <PageHeader
+        title="Mes missions"
+        description="Contrôles véhicule à effectuer sur place, du rendez-vous à la validation."
+        breadcrumb={[{ label: "Mes missions" }]}
+        actions={<PushSubscribeButton />}
+      />
 
       {missions.isLoading ? <LoadingState label="Chargement des missions…" /> : null}
       {missions.error ? (
@@ -48,7 +46,7 @@ function MissionsList() {
           <li key={mission.id}>
             <Link
               href={`/missions/${mission.id}`}
-              className="flex items-center justify-between gap-4 rounded-lg border border-border p-4 transition-colors hover:bg-muted focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-ring"
+              className="flex items-center justify-between gap-4 rounded-xl bg-card p-4 ring-1 ring-foreground/10 transition-colors hover:bg-muted focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-ring"
             >
               <div className="flex flex-col gap-1">
                 <div className="flex flex-wrap items-center gap-2">

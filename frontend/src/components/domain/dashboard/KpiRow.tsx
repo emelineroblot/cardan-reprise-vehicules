@@ -29,6 +29,7 @@ export function KpiRow() {
   return (
     <div className="grid grid-cols-2 gap-3 sm:grid-cols-3 lg:grid-cols-4">
       <StatTile
+        featured
         label="Véhicules au total"
         value={data.nb_vehicules_total.toLocaleString("fr-FR")}
         hint={`${data.nb_vehicules_actifs} en cours`}

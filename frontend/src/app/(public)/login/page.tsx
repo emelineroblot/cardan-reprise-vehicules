@@ -2,6 +2,7 @@
 
 import { useEffect, useState } from "react";
 import { useRouter } from "next/navigation";
+import { Car } from "lucide-react";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { ErrorState } from "@/components/ui/error-state";
@@ -46,7 +47,12 @@ export default function LoginPage() {
   };
 
   return (
-    <div className="flex flex-1 flex-col items-center justify-center px-4 py-12">
+    <div className="flex flex-1 flex-col items-center justify-center bg-muted/40 px-4 py-12">
+      <div className="mb-6 flex flex-col items-center gap-2">
+        <span className="flex size-10 items-center justify-center rounded-xl bg-foreground text-background">
+          <Car className="size-5" aria-hidden="true" />
+        </span>
+      </div>
       <Card className="w-full max-w-lg">
         <CardHeader>
           <CardTitle className="text-2xl">Connexion</CardTitle>

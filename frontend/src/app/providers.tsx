@@ -2,6 +2,7 @@
 
 import { useState, type ReactNode } from "react";
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
+import { ThemeProvider } from "next-themes";
 import { ApiError } from "@/lib/api/client";
 import { AuthProvider } from "@/lib/auth/AuthProvider";
 
@@ -32,8 +33,13 @@ export function Providers({ children }: { children: ReactNode }) {
   );
 
   return (
-    <QueryClientProvider client={queryClient}>
-      <AuthProvider>{children}</AuthProvider>
-    </QueryClientProvider>
+    // `attribute="class"` bascule la classe `.dark` déjà consommée par globals.css (palette
+    // clair/sombre + dataviz, skill `dataviz`) ; `disableTransitionOnChange` évite un flash de
+    // transition CSS sur toute la page au changement de thème.
+    <ThemeProvider attribute="class" defaultTheme="system" enableSystem disableTransitionOnChange>
+      <QueryClientProvider client={queryClient}>
+        <AuthProvider>{children}</AuthProvider>
+      </QueryClientProvider>
+    </ThemeProvider>
   );
 }

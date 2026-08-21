@@ -1,6 +1,7 @@
 "use client";
 
 import { RoleGuard } from "@/components/domain/RoleGuard";
+import { PageHeader } from "@/components/domain/PageHeader";
 import { AnalyticsFreshnessBar } from "@/components/domain/dashboard/AnalyticsFreshnessBar";
 import { KpiRow } from "@/components/domain/dashboard/KpiRow";
 import { MargeSection } from "@/components/domain/dashboard/MargeSection";
@@ -25,13 +26,11 @@ export default function PilotagePage() {
 function Dashboard() {
   return (
     <div className="flex flex-col gap-6">
-      <div>
-        <h1 className="text-2xl font-semibold tracking-tight">Tableau de bord</h1>
-        <p className="text-sm text-muted-foreground">
-          Marge par véhicule, délai de cycle, taux de refus, coût moyen des travaux — lus dans
-          la couche analytique.
-        </p>
-      </div>
+      <PageHeader
+        title="Tableau de bord"
+        description="Marge par véhicule, délai de cycle, taux de refus, coût moyen des travaux — lus dans la couche analytique."
+        breadcrumb={[{ label: "Tableau de bord" }]}
+      />
 
       <AnalyticsFreshnessBar />
       <KpiRow />
